@@ -1,0 +1,12 @@
+[Unit]
+Description=Set core pattern
+DefaultDependencies=no
+Before=sysinit.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/set_corepattern.sh
+
+[Install]
+WantedBy=sysinit.target
+
