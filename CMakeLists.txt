@@ -1,0 +1,9 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
+PROJECT(crash-worker C)
+
+SET(PREFIX ${CMAKE_INSTALL_PREFIX})
+
+# Sub modules
+ADD_SUBDIRECTORY(src/crash-manager)
+ADD_SUBDIRECTORY(src/dump_systemstate)
+
