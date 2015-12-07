@@ -7,6 +7,7 @@ License:    Apache-2.0
 Source0:    %{name}-%{version}.tar.gz
 Source1001:    crash-worker.manifest
 BuildRequires:  pkgconfig(dlog)
+BuildRequires:  pkgconfig(libtzplatform-config)
 BuildRequires:  cmake
 
 Requires(post): coreutils
@@ -19,12 +20,17 @@ crash-manager
 %prep
 %setup -q
 
+#Path to store logs and coredump files
+%define crash_path %{TZ_SYS_SHARE}/crash/dump
+
 %build
 cp %{SOURCE1001} .
 
 export CFLAGS+=" -Werror"
 
-%cmake . -DCMAKE_INSTALL_PREFIX=%{_prefix}
+%cmake . \
+	   -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+	   -DCRASH_PATH=%{crash_path}
 make %{?jobs:-j%jobs}
 
 %install
