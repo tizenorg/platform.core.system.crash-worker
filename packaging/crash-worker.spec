@@ -19,12 +19,17 @@ crash-manager
 %prep
 %setup -q
 
+#Path to store logs and coredump files
+%define crash_path /opt/usr/share/crash/dump
+
 %build
 cp %{SOURCE1001} .
 
 export CFLAGS+=" -Werror"
 
-%cmake . -DCMAKE_INSTALL_PREFIX=%{_prefix}
+%cmake . \
+	   -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+	   -DCRASH_PATH=%{crash_path}
 make %{?jobs:-j%jobs}
 
 %install

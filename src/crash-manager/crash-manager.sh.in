@@ -9,7 +9,7 @@ app="$6"
 
 /usr/lib/systemd/systemd-coredump "$process" "$user" "$group" "$signal" "$time" "$app"
 
-rootpath=/opt/usr/share/crash/dump
+rootpath=@CRASH_PATH@
 name="$app"_"$process"_"$time"
 path="$rootpath"/"$name"
 info="$path"/"$name".info
