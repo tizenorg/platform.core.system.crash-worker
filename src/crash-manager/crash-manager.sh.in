@@ -12,15 +12,22 @@ app="$6"
 rootpath=@CRASH_PATH@
 name="$app"_"$process"_"$time"
 path="$rootpath"/"$name"
-info="$path"/"$name".info
-dump="$path"/"$name".coredump
-log="$path"/"$name".log
+info="$name".info
+dump="$name".coredump
+log="$name".log
+result="$name".tar.gz
 
 /usr/bin/mkdir -p "$rootpath"
 /usr/bin/mkdir -p "$path"
 
-/usr/bin/coredumpctl dump "$process" --output="$dump"
+cd "$path"
 
 /usr/bin/coredumpctl info "$process" >> "$info"
 /usr/bin/coredumpctl dump "$process" --output="$dump"
 /usr/bin/dump_systemstate -d -k -f "$log"
+
+/usr/bin/tar cvfz ../"$result" "$dump" "$info" "$log"
+
+cd ..
+
+/usr/bin/rm -rf "$path"
