@@ -76,6 +76,13 @@ static int get_disk_used_percent(const char *path)
 	return percent;
 }
 
+static bool dlog_supported(void)
+{
+	if (access("/dev/log_main", F_OK) == 0)
+		return true;
+	return false;
+}
+
 int main(int argc, char *argv[]) {
 	int c, ret, i, is_root, dpercent;
 	const char *arg_file = NULL;
@@ -192,19 +199,26 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (arg_dlog) {
-		fprintf_fd(out_fd, "\n==== main log messages (/dev/log_main)\n");
-		ret = run_command_write_fd("/usr/bin/dlogutil -d -v dump -b main", out_fd);
-		if (ret < 0)
-			goto exit_close;
-
-		if(is_root) {
-			fprintf_fd(out_fd, "\n==== system log messages (/dev/log_system)\n");
-			ret = run_command_write_fd("/usr/bin/dlogutil -d -v dump -b system", out_fd);
+		if (dlog_supported()) {
+			fprintf_fd(out_fd, "\n==== main log messages (/dev/log_main)\n");
+			ret = run_command_write_fd("/usr/bin/dlogutil -d -v dump -b main", out_fd);
 			if (ret < 0)
 				goto exit_close;
 
-			fprintf_fd(out_fd, "\n==== radio log messages (/dev/log_radio)\n");
-			ret = run_command_write_fd("/usr/bin/dlogutil -d -v dump -b radio", out_fd);
+			if(is_root) {
+				fprintf_fd(out_fd, "\n==== system log messages (/dev/log_system)\n");
+				ret = run_command_write_fd("/usr/bin/dlogutil -d -v dump -b system", out_fd);
+				if (ret < 0)
+					goto exit_close;
+
+				fprintf_fd(out_fd, "\n==== radio log messages (/dev/log_radio)\n");
+				ret = run_command_write_fd("/usr/bin/dlogutil -d -v dump -b radio", out_fd);
+				if (ret < 0)
+					goto exit_close;
+			}
+		} else {
+			fprintf_fd(out_fd, "\n==== Log messages (journalctl)\n");
+			ret = run_command_write_fd("/usr/bin/journalctl", out_fd);
 			if (ret < 0)
 				goto exit_close;
 		}
