@@ -21,7 +21,8 @@ crash-manager
 %setup -q
 
 #Path to store logs and coredump files
-%define crash_path %{TZ_SYS_SHARE}/crash/dump
+%define crash_root_path %{TZ_SYS_SHARE}/crash
+%define crash_path %{crash_root_path}/dump
 
 %build
 cp %{SOURCE1001} .
@@ -30,25 +31,22 @@ export CFLAGS+=" -Werror"
 
 %cmake . \
 	   -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+	   -DTZ_SYS_BIN=%{TZ_SYS_BIN} \
 	   -DCRASH_PATH=%{crash_path}
 make %{?jobs:-j%jobs}
 
 %install
 rm -rf %{buildroot}
 %make_install
-mkdir -p %{buildroot}/opt/usr/share/crash
-mkdir -p %{buildroot}/opt/usr/share/crash/dump
-
-%install_service sysinit.target.wants crash-manager.service
+mkdir -p %{buildroot}%{crash_root_path}
+mkdir -p %{buildroot}%{crash_path}
 
 %files
 %license LICENSE
 %manifest crash-worker.manifest
 %defattr(-,system,system,-)
-%dir /opt/usr/share/crash
-%dir /opt/usr/share/crash/dump
-%attr(0755,system,system)/usr/bin/dump_systemstate
+%dir %{crash_root_path}
+%dir %{crash_path}
+%attr(0755,system,system) %{_bindir}/dump_systemstate
 %{_bindir}/crash-manager.sh
-%{_bindir}/set_corepattern.sh
-%{_unitdir}/crash-manager.service
-%{_unitdir}/sysinit.target.wants/crash-manager.service
+%{_prefix}/lib/sysctl.d/99-crash-manager.conf

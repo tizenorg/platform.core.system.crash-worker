@@ -1,0 +1,2 @@
+# Tizen crash-manager
+kernel.core_pattern=|/usr/bin/crash-manager.sh %p %u %g %s %t %e
