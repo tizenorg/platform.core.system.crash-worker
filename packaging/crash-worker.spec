@@ -41,8 +41,6 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}%{crash_root_path}
 mkdir -p %{buildroot}%{crash_path}
 
-%install_service sysinit.target.wants crash-manager.service
-
 %files
 %license LICENSE
 %manifest crash-worker.manifest
@@ -51,6 +49,4 @@ mkdir -p %{buildroot}%{crash_path}
 %dir %{crash_path}
 %attr(0755,system,system) %{_bindir}/dump_systemstate
 %{_bindir}/crash-manager.sh
-%{_bindir}/set_corepattern.sh
-%{_unitdir}/crash-manager.service
-%{_unitdir}/sysinit.target.wants/crash-manager.service
+%{_prefix}/lib/sysctl.d/99-crash-manager.conf
