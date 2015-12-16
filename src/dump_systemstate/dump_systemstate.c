@@ -34,6 +34,9 @@
 #include <sys/vfs.h>
 
 #include "shared/util.h"
+#include "shared/log.h"
+
+#define DLOG_BACKEND_PATH "/etc/dlog_backend"
 
 #define FILE_PERM (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)
 static struct dump_item {
@@ -76,11 +79,29 @@ static int get_disk_used_percent(const char *path)
 	return percent;
 }
 
-static bool dlog_supported(void)
+static bool dlogutil_supported(void)
 {
-	if (access("/dev/log_main", F_OK) == 0)
-		return true;
-	return false;
+	FILE *fp;
+	char buf[32];
+
+	fp = fopen(DLOG_BACKEND_PATH, "r");
+	if (!fp) {
+		_E("cannot open dlog backend file(errno:%d)", errno);
+		return false;
+	}
+
+	if(!fgets(buf, sizeof(buf), fp)) {
+		_E("Failed to read dlog backend");
+		fclose(fp);
+		return false;
+	}
+
+	fclose(fp);
+
+	if (!strncmp(buf, "journal", 7))
+		return false;
+
+	return true;
 }
 
 int main(int argc, char *argv[]) {
@@ -199,7 +220,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (arg_dlog) {
-		if (dlog_supported()) {
+		if (dlogutil_supported()) {
 			fprintf_fd(out_fd, "\n==== main log messages (/dev/log_main)\n");
 			ret = run_command_write_fd("/usr/bin/dlogutil -d -v dump -b main", out_fd);
 			if (ret < 0)
