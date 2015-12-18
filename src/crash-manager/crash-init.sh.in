@@ -1,5 +1,17 @@
 #!/bin/sh
 
+################################
+# MOUNT tmpfs ON TEMPORARY PATH
+################################
+
+mkdir -p @CRASH_TEMP@
+/usr/bin/mount tmpfs @CRASH_TEMP@ -t tmpfs
+
+
+############################
+# REMOVE PREVIOUS COREDUMPS
+############################
+
 id=""
 
 if [ -e "/proc/sys/kernel/random/boot_id" ]
@@ -12,7 +24,7 @@ if [ -d "/var/lib/systemd/coredump" ]
 then
 	cd /var/lib/systemd/coredump
 
-#remove temporary dump files
+#remove garbage dump files
 	if [ -e ".#core.*" ]
 	then
 		for i in `ls -a .#core.*`
