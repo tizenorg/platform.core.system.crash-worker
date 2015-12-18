@@ -32,6 +32,7 @@ export CFLAGS+=" -Werror"
 %cmake . \
 	   -DCMAKE_INSTALL_PREFIX=%{_prefix} \
 	   -DTZ_SYS_BIN=%{TZ_SYS_BIN} \
+	   -DUNIT_DIR=%{_unitdir} \
 	   -DCRASH_PATH=%{crash_path}
 make %{?jobs:-j%jobs}
 
@@ -41,6 +42,8 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}%{crash_root_path}
 mkdir -p %{buildroot}%{crash_path}
 
+%install_service sysinit.target.wants crash-init.service
+
 %files
 %license LICENSE
 %manifest crash-worker.manifest
@@ -49,4 +52,7 @@ mkdir -p %{buildroot}%{crash_path}
 %dir %{crash_path}
 %attr(0755,system,system) %{_bindir}/dump_systemstate
 %{_bindir}/crash-manager.sh
+%{_bindir}/crash-init.sh
 %{_prefix}/lib/sysctl.d/99-crash-manager.conf
+%{_unitdir}/crash-init.service
+%{_unitdir}/sysinit.target.wants/crash-init.service
