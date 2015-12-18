@@ -1,0 +1,11 @@
+[Unit]
+Description=Crash init
+DefaultDependencies=no
+Before=sysinit.target
+
+[Service]
+Type=normal
+ExecStart=@TZ_SYS_BIN@/@CRASH_INIT@.sh
+
+[Install]
+WantedBy=sysinit.target
