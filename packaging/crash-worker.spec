@@ -23,6 +23,7 @@ crash-manager
 #Path to store logs and coredump files
 %define crash_root_path /opt%{TZ_SYS_SHARE}/crash
 %define crash_path      %{crash_root_path}/dump
+%define crash_temp      %{crash_root_path}/temp
 
 %build
 cp %{SOURCE1001} .
@@ -33,7 +34,8 @@ export CFLAGS+=" -Werror"
 	   -DCMAKE_INSTALL_PREFIX=%{_prefix} \
 	   -DTZ_SYS_BIN=%{TZ_SYS_BIN} \
 	   -DUNIT_DIR=%{_unitdir} \
-	   -DCRASH_PATH=%{crash_path}
+	   -DCRASH_PATH=%{crash_path} \
+	   -DCRASH_TEMP=%{crash_temp}
 make %{?jobs:-j%jobs}
 
 %install
@@ -41,6 +43,7 @@ rm -rf %{buildroot}
 %make_install
 mkdir -p %{buildroot}%{crash_root_path}
 mkdir -p %{buildroot}%{crash_path}
+mkdir -p %{buildroot}%{crash_temp}
 
 %install_service sysinit.target.wants crash-init.service
 
@@ -50,6 +53,7 @@ mkdir -p %{buildroot}%{crash_path}
 %defattr(-,system,system,-)
 %dir %{crash_root_path}
 %dir %{crash_path}
+%dir %{crash_temp}
 %attr(0755,system,system) %{_bindir}/dump_systemstate
 %{_bindir}/crash-manager.sh
 %{_bindir}/crash-init.sh

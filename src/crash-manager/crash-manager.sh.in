@@ -9,15 +9,17 @@ app="$6"
 
 /usr/lib/systemd/systemd-coredump "$process" "$user" "$group" "$signal" "$time" "$app"
 
-rootpath=@CRASH_PATH@
+temppath=@CRASH_TEMP@
+resultpath=@CRASH_PATH@
 name="$app"_"$process"_"$time"
-path="$rootpath"/"$name"
+path="$temppath"/"$name"
 info="$name".info
 dump="$name".coredump
 log="$name".log
 result="$name".tar.gz
 
-/usr/bin/mkdir -p "$rootpath"
+/usr/bin/mkdir -p "$temppath"
+/usr/bin/mkdir -p "$resultpath"
 /usr/bin/mkdir -p "$path"
 
 cd "$path"
@@ -26,8 +28,9 @@ cd "$path"
 /usr/bin/coredumpctl dump "$process" --output="$dump"
 /usr/bin/dump_systemstate -d -k -f "$log"
 
-/usr/bin/tar cvfz ../"$result" "$dump" "$info" "$log"
+cd "$temppath"
+/usr/bin/tar cvfz "$result" "$name"/"$dump" "$name"/"$info" "$name"/"$log"
 
-cd ..
+/usr/bin/mv "$temppath"/"$result" "$resultpath"/"$result"
 
 /usr/bin/rm -rf "$path"

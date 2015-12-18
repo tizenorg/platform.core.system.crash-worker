@@ -1,7 +1,7 @@
 [Unit]
 Description=Crash init
 DefaultDependencies=no
-Before=sysinit.target
+After=local-fs.target
 
 [Service]
 Type=normal
