@@ -295,13 +295,15 @@ static int remove_dir_internal(int fd)
 	DIR *dir;
 	struct dirent *de;
 	int subfd, ret = 0;
+	int len;
 
 	dir = fdopendir(fd);
 	if (!dir)
 		return -1;
 	while ((de = readdir(dir))) {
 		if (de->d_type == DT_DIR) {
-			if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+			len = strlen(de->d_name) + 1;
+			if (!strncmp(de->d_name, ".", len) || !strncmp(de->d_name, "..", len))
 				continue;
 			subfd = openat(fd, de->d_name, O_RDONLY | O_DIRECTORY);
 			if (subfd < 0) {
@@ -385,6 +387,7 @@ int get_exec_pid(const char *execpath)
 	int ret;
 	char buf[PATH_MAX];
 	char buf2[PATH_MAX];
+	int len;
 
 	dp = opendir("/proc");
 	if (!dp) {
@@ -392,6 +395,7 @@ int get_exec_pid(const char *execpath)
 		return -1;
 	}
 
+	len = strlen(execpath) + 1;
 	while ((dentry = readdir(dp)) != NULL) {
 		if (!isdigit(dentry->d_name[0]))
 			continue;
@@ -410,7 +414,7 @@ int get_exec_pid(const char *execpath)
 
 		buf2[ret] = '\0';
 
-		if (!strcmp(buf2, execpath)) {
+		if (!strncmp(buf2, execpath, len)) {
 			closedir(dp);
 			return pid;
 		}
@@ -452,6 +456,7 @@ int get_directory_usage(char *path)
 	struct stat st;
 	size_t usage = 0;
 	int fd = -1;
+	int len;
 
 	fd = open(path, O_RDONLY|O_NONBLOCK|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW|O_NOATIME);
 	if (fd < 0)
@@ -462,7 +467,8 @@ int get_directory_usage(char *path)
 		return -1;
 	}
 	while ((de = readdir(dir))) {
-		if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+		len = strlen(de->d_name) + 1;
+		if (!strncmp(de->d_name, ".", len) || !strncmp(de->d_name, "..", len))
 			continue;
 		if (fstatat(fd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) < 0) {
 			_SE("Failed to fstatat  %s: %s\n", de->d_name, strerror(errno));
