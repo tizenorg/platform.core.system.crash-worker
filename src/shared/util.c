@@ -301,7 +301,7 @@ static int remove_dir_internal(int fd)
 		return -1;
 	while ((de = readdir(dir))) {
 		if (de->d_type == DT_DIR) {
-			if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+			if (!strncmp(de->d_name, ".", 2) || !strncmp(de->d_name, "..", 3))
 				continue;
 			subfd = openat(fd, de->d_name, O_RDONLY | O_DIRECTORY);
 			if (subfd < 0) {
@@ -385,6 +385,7 @@ int get_exec_pid(const char *execpath)
 	int ret;
 	char buf[PATH_MAX];
 	char buf2[PATH_MAX];
+	int len;
 
 	dp = opendir("/proc");
 	if (!dp) {
@@ -392,6 +393,7 @@ int get_exec_pid(const char *execpath)
 		return -1;
 	}
 
+	len = strlen(execpath) + 1;
 	while ((dentry = readdir(dp)) != NULL) {
 		if (!isdigit(dentry->d_name[0]))
 			continue;
@@ -410,7 +412,7 @@ int get_exec_pid(const char *execpath)
 
 		buf2[ret] = '\0';
 
-		if (!strcmp(buf2, execpath)) {
+		if (!strncmp(buf2, execpath, len)) {
 			closedir(dp);
 			return pid;
 		}
@@ -462,7 +464,7 @@ int get_directory_usage(char *path)
 		return -1;
 	}
 	while ((de = readdir(dir))) {
-		if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+		if (!strncmp(de->d_name, ".", 2) || !strncmp(de->d_name, "..", 3))
 			continue;
 		if (fstatat(fd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) < 0) {
 			_SE("Failed to fstatat  %s: %s\n", de->d_name, strerror(errno));
