@@ -36,7 +36,7 @@
 #include "shared/util.h"
 #include "shared/log.h"
 
-#define DLOG_BACKEND_PATH "/etc/dlog_backend"
+#define DLOG_BACKEND_PATH "/run/dloginit.conf"
 
 #define FILE_PERM (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)
 static struct dump_item {
@@ -98,7 +98,7 @@ static bool dlogutil_supported(void)
 
 	fclose(fp);
 
-	if (!strncmp(buf, "journal", 7))
+	if (!strncmp(buf, "LOG_TYPE=journal", 16))
 		return false;
 
 	return true;
