@@ -35,7 +35,9 @@ export CFLAGS+=" -Werror"
 	   -DTZ_SYS_BIN=%{TZ_SYS_BIN} \
 	   -DUNIT_DIR=%{_unitdir} \
 	   -DCRASH_PATH=%{crash_path} \
-	   -DCRASH_TEMP=%{crash_temp}
+	   -DCRASH_TEMP=%{crash_temp} \
+	   -DCRASH_PIPE_PATH=%{_libexecdir}/crash-pipe
+
 make %{?jobs:-j%jobs}
 
 %install
@@ -57,6 +59,7 @@ mkdir -p %{buildroot}%{crash_temp}
 %attr(0755,system,system) %{_bindir}/dump_systemstate
 %{_bindir}/crash-manager.sh
 %{_bindir}/crash-init.sh
+%{_libexecdir}/crash-pipe
 %{_prefix}/lib/sysctl.d/99-crash-manager.conf
 %{_unitdir}/crash-init.service
 %{_unitdir}/sysinit.target.wants/crash-init.service
