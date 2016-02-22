@@ -54,19 +54,95 @@ static void usage(void)
 	     argv0);
 }
 
+/* read file to buffer - file will be truncated if buffer is too small */
+static int procfs_read_fileline(const char *pid, const char *filename, char *outbuf, int outsize)
+{
+     char *path = NULL;
+     int fd;
+     int n;
+
+     if (!(outsize > 0))
+	  return 0;
+
+     if (asprintf(&path, "/proc/%s/%s", pid, filename) == -1)
+	  return 0;
+
+     fd = open(path, O_RDONLY);
+     if (fd == -1)
+	  goto err;
+
+     n = read(fd, outbuf, outsize);
+     if (n == -1 || n == outsize /* no place for \0 */)
+	  goto err;
+
+     outbuf[n] = 0;
+     for (; n > 0; --n) {
+          if (outbuf[n] == '\n')
+	      outbuf[n] = 0;
+     }
+
+     close(fd);
+
+     free(path);
+     return 1;
+
+err:
+     free(path);
+     *outbuf = 0;
+     return 0;
+}
+
 static void report(int argc, char *argv[])
 {
      const char *pidstr = argv[0];
+     const char *uidstr = argv[1];
+     const char *gidstr = argv[2];
+     const char *sigstr = argv[3];
+     const char *timestr = argv[4];
+     const char *exestr = argv[5];
+
+#define PROC_READ_MAX 128
+     char comm[PROC_READ_MAX];
+     char cmdline[PROC_READ_MAX];
+     char cgroup[PROC_READ_MAX];
+     char label[PROC_READ_MAX];
+     char oom_score[PROC_READ_MAX];
+
+     /* Try to get as much info from procfs as possible */
+     procfs_read_fileline(pidstr, "comm", comm, sizeof(comm));
+     procfs_read_fileline(pidstr, "cmdline", cmdline, sizeof(cmdline));
+     procfs_read_fileline(pidstr, "cgroup", cgroup, sizeof(cgroup));
+     procfs_read_fileline(pidstr, "attr/current", label, sizeof(label));
+     procfs_read_fileline(pidstr, "oom_score", oom_score, sizeof(oom_score));
 
 
-     printf("Process crash report: %s\n"
-	    "\tpid: %s\n"
-	    "\tuid: %s\n"
-	    "\tgid: %s\n"
-	    "\tsignal: %s\n"
-	    "\ttimestamp of crash: %s\n",
-	    argv[5], pidstr, argv[1], argv[2], argv[3], argv[4]);
+     printf("Crash report for: %s\n", exestr);
 
+     printf(" - passed from kernel -\n"
+	    "%16s: %s\n"
+	    "%16s: %s\n"
+	    "%16s: %s\n"
+	    "%16s: %s\n"
+	    "%16s: %s\n"
+	    "%16s: %s\n",
+	    "PID", pidstr,
+	    "UID", uidstr,
+	    "GID", gidstr,
+	    "Signal number", sigstr,
+	    "Timestamp", timestr,
+	    "Executable", exestr);
+
+     printf(" - procfs information -\n"
+	    "%16s: %s\n"
+	    "%16s: %s\n"
+	    "%16s: %s\n"
+	    "%16s: %s\n"
+	    "%16s: %s\n",
+	    "Comm", comm,
+	    "Cmdline", cmdline,
+	    "CGroup", cgroup,
+	    "MAC Label", label,
+	    "OOM Score", oom_score);
 }
 
 static int save_core(const char *core_path)
