@@ -54,19 +54,121 @@ static void usage(void)
 	     argv0);
 }
 
+/* read file to buffer
+ *
+ * Returns success only if whole file has been read (requires big
+ * enough buffer).
+ */
+static int procfs_read_fileline(const char *pid, const char *filename, char *outbuf, int outsize)
+{
+     char *path = NULL;
+     int fd;
+     int n;
+     int ret = 0;
+
+     if (!(outsize > 0))
+	  return 0;
+
+     if (asprintf(&path, "/proc/%s/%s", pid, filename) == -1)
+	  return -ENOMEM;
+
+     fd = open(path, O_RDONLY);
+     if (fd == -1) {
+	  ret = -errno;
+	  goto err;
+     }
+
+     /* XXX we are really assuming here that one read is enough */
+     ret = read(fd, outbuf, outsize);
+     if (ret == -1 || ret == outsize /* no place for \0 */) {
+	  ret = -errno;
+	  goto err;
+     }
+
+     n = ret;
+     outbuf[n] = 0;
+     for (; n > 0; --n) {
+          if (outbuf[n] == '\n')
+	      outbuf[n] = 0;
+     }
+
+     close(fd);
+
+     free(path);
+     return ret;
+
+err:
+     free(path);
+     *outbuf = 0;
+     return ret;
+}
+
+void print_multiline(char *buf, int buf_size)
+{
+     int i;
+     int pos;
+
+     for (pos = i = 0; buf[pos] && pos < buf_size; ++ i, pos += strlen(buf + pos) + 1)
+	  printf("%21d: %s\n", i, buf + pos);
+}
+
 static void report(int argc, char *argv[])
 {
      const char *pidstr = argv[0];
+     const char *uidstr = argv[1];
+     const char *gidstr = argv[2];
+     const char *sigstr = argv[3];
+     const char *timestr = argv[4];
+     const char *exestr = argv[5];
+     static const struct {
+	  char *file;
+	  char *desc;
+	  int is_multiline;
+     } proc_filedesc[] = {
+	  { "comm", "Comm", 0},
+	  { "cgroup", "CGroup", 0 },
+	  { "attr/current", "MAC Label", 0 },
+	  { "oom_score", "OOM Score", 0 },
+	  { "cmdline", "Cmdline", 1 },
+	  { "environ", "Environment", 1 }
+     };
 
+     int i;
+     int n;
 
-     printf("Process crash report: %s\n"
-	    "\tpid: %s\n"
-	    "\tuid: %s\n"
-	    "\tgid: %s\n"
-	    "\tsignal: %s\n"
-	    "\ttimestamp of crash: %s\n",
-	    argv[5], pidstr, argv[1], argv[2], argv[3], argv[4]);
+#define PROC_READ_MAX 16384 /* 4 pages should be enough for any process */
+     static char proc_readbuf[PROC_READ_MAX];
 
+     printf("Crash report for: %s\n\n", exestr);
+
+     printf(" - passed from kernel -\n"
+	    "%16s: %s\n"
+	    "%16s: %s\n"
+	    "%16s: %s\n"
+	    "%16s: %s\n"
+	    "%16s: %s\n"
+	    "%16s: %s\n\n",
+	    "PID", pidstr,
+	    "UID", uidstr,
+	    "GID", gidstr,
+	    "Signal number", sigstr,
+	    "Timestamp", timestr,
+	    "Executable", exestr);
+
+     printf(" - procfs information -\n");
+
+     for (i = 0; i < NELEMS(proc_filedesc); ++ i) {
+	  n = procfs_read_fileline(pidstr, proc_filedesc[i].file, proc_readbuf, sizeof(proc_readbuf));
+	  if (n < 0)
+	       snprintf(proc_readbuf, sizeof(proc_readbuf), "Error (%s)", strerror(-n));
+
+	  if (n < 0 || proc_filedesc[i].is_multiline == 0)
+	       printf("%16s: %s\n", proc_filedesc[i].desc, proc_readbuf);
+	  else {
+	       printf("%16s:\n", proc_filedesc[i].desc);
+	       print_multiline(proc_readbuf, n);
+	  }
+     }
 }
 
 static int save_core(const char *core_path)
