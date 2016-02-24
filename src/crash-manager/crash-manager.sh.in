@@ -1,36 +1,37 @@
 #!/bin/sh
 
-process="$1"
-user="$2"
-group="$3"
-signal="$4"
+set -e
+exec >/dev/null 2>&1
+
+PATH=/bin:/usr/bin
+CRASH_PATH="@CRASH_PATH@"
+CRASH_TEMP="@CRASH_TEMP@"
+
+# Expected invocation from kernel:
+#
+#   argv0 PID UID GID SIGNAL TIME CMD
+pid="$1"
 time="$5"
-app="$6"
+cmd="$6"
 
-/usr/lib/systemd/systemd-coredump "$process" "$user" "$group" "$signal" "$time" "$app"
+temp_dir="$(mktemp -d "${CRASH_TEMP}/crash.XXXXXX")"
+cleanup()
+{
+    [ "$temp_dir" ] && rm -rf "$temp_dir"
+}
+trap cleanup 0 2 15
 
-temppath=@CRASH_TEMP@
-resultpath=@CRASH_PATH@
-name="$app"_"$process"_"$time"
-path="$temppath"/"$name"
-info="$name".info
-dump="$name".coredump
-log="$name".log
-result="$name".tar.gz
+name="${cmd}_${pid}_${time}"
+result_path="${CRASH_PATH}/${name}.tar.gz"
+pfx="${temp_dir}/${name}"
+info_path="${pfx}/${name}.info"
+core_path="${pfx}/${name}.coredump"
+log_path="${pfx}/${name}.log"
 
-/usr/bin/mkdir -p "$temppath"
-/usr/bin/mkdir -p "$resultpath"
-/usr/bin/mkdir -p "$path"
+mkdir -p "$CRASH_PATH" "$pfx"
 
-cd "$path"
+@CRASH_PIPE_PATH@ --save-core "$core_path" --report "$@" > "$info_path"
+dump_systemstate -d -k -f "$log_path" || true
 
-/usr/bin/coredumpctl info "$process" >> "$info"
-/usr/bin/coredumpctl dump "$process" --output="$dump"
-/usr/bin/dump_systemstate -d -k -f "$log"
-
-cd "$temppath"
-/usr/bin/tar cvfz "$result" "$name"/"$dump" "$name"/"$info" "$name"/"$log"
-
-/usr/bin/mv "$temppath"/"$result" "$resultpath"/"$result"
-
-/usr/bin/rm -rf "$path"
+tar czf "${temp_dir}/report.tar.gz" -C "$temp_dir" "$name"
+mv "${temp_dir}/report.tar.gz" "$result_path"
