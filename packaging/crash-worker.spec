@@ -56,4 +56,5 @@ mkdir -p %{buildroot}%{crash_temp}
 %attr(0755,system,system) %{_bindir}/dump_systemstate
 %{_bindir}/crash-manager.sh
 %{_libexecdir}/crash-pipe
+%{_libexecdir}/crash-stack
 %{_prefix}/lib/sysctl.d/99-crash-manager.conf

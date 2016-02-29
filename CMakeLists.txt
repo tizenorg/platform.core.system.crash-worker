@@ -6,5 +6,6 @@ SET(PREFIX ${CMAKE_INSTALL_PREFIX})
 # Sub modules
 ADD_SUBDIRECTORY(src/crash-manager)
 ADD_SUBDIRECTORY(src/crash-pipe)
+ADD_SUBDIRECTORY(src/crash-stack)
 ADD_SUBDIRECTORY(src/dump_systemstate)
 
