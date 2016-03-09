@@ -7,7 +7,7 @@ signal="$4"
 time="$5"
 app="$6"
 
-/usr/lib/systemd/systemd-coredump "$process" "$user" "$group" "$signal" "$time" "$app"
+@PREFIX@/lib/systemd/systemd-coredump "$process" "$user" "$group" "$signal" "$time" "$app"
 
 temppath=@CRASH_TEMP@
 resultpath=@CRASH_PATH@
@@ -18,19 +18,19 @@ dump="$name".coredump
 log="$name".log
 result="$name".tar.gz
 
-/usr/bin/mkdir -p "$temppath"
-/usr/bin/mkdir -p "$resultpath"
-/usr/bin/mkdir -p "$path"
+@TZ_SYS_BIN@/mkdir -p "$temppath"
+@TZ_SYS_BIN@/mkdir -p "$resultpath"
+@TZ_SYS_BIN@/mkdir -p "$path"
 
 cd "$path"
 
-/usr/bin/coredumpctl info "$process" >> "$info"
-/usr/bin/coredumpctl dump "$process" --output="$dump"
-/usr/bin/dump_systemstate -d -k -f "$log"
+@TZ_SYS_BIN@/coredumpctl info "$process" >> "$info"
+@TZ_SYS_BIN@/coredumpctl dump "$process" --output="$dump"
+@TZ_SYS_BIN@/dump_systemstate -d -k -f "$log"
 
 cd "$temppath"
-/usr/bin/tar cvfz "$result" "$name"/"$dump" "$name"/"$info" "$name"/"$log"
+@TZ_SYS_BIN@/tar cvfz "$result" "$name"/"$dump" "$name"/"$info" "$name"/"$log"
 
-/usr/bin/mv "$temppath"/"$result" "$resultpath"/"$result"
+@TZ_SYS_BIN@/mv "$temppath"/"$result" "$resultpath"/"$result"
 
-/usr/bin/rm -rf "$path"
+@TZ_SYS_BIN@/rm -rf "$path"
