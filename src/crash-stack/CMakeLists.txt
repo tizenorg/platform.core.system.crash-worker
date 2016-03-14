@@ -1,6 +1,8 @@
 set(CRASH_STACK_BIN "crash-stack")
-set(CRASH_STACK_SRCS crash-stack.c)
+set(CRASH_STACK_SRCS crash-stack.cpp wind/unwarm.c wind/unwarm_thumb.c wind/unwarm_arm.c wind/unwarmmem.c)
 
 add_executable(${CRASH_STACK_BIN} ${CRASH_STACK_SRCS})
-target_link_libraries(${CRASH_STACK_BIN})
+set_property(TARGET ${CRASH_STACK_BIN} APPEND PROPERTY COMPILE_FLAGS "-DUPGRADE_ARM_STACK_UNWIND")
+#set_property(TARGET ${CRASH_STACK_BIN} APPEND PROPERTY COMPILE_FLAGS "-DUPGRADE_ARM_STACK_UNWIND -DUNW_DEBUG")
+target_link_libraries(${CRASH_STACK_BIN} dw elf ebl dl)
 install(TARGETS ${CRASH_STACK_BIN} DESTINATION libexec)

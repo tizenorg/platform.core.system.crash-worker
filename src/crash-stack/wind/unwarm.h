@@ -18,7 +18,7 @@
  * Nested Include Files
  **************************************************************************/
 
-#include <system.h>
+#include "system.h"
 #if defined(UPGRADE_ARM_STACK_UNWIND)
 #include "unwarminder.h"
 
@@ -97,6 +97,10 @@ typedef struct
 }
 MemData;
 
+#define REG_SP 13
+#define REG_LR 14
+#define REG_PC 15
+#define REG_SPSR 16
 
 /** Structure that is used to keep track of unwinding meta-data.
  * This data is passed between all the unwinding functions.
@@ -104,7 +108,7 @@ MemData;
 typedef struct
 {
     /** The register values and meta-data. */
-    RegData regData[16];
+    RegData regData[17];
 
     /** Memory tracking data. */
     MemData memData;
@@ -147,6 +151,8 @@ UnwState;
 /***************************************************************************
  *  Function Prototypes
  **************************************************************************/
+
+Boolean UnwIsAddrThumb (Int32 pc, Int32 spsr);
 
 UnwResult UnwStartArm       (UnwState * const state);
 

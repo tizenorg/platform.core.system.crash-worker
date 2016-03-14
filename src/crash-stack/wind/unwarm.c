@@ -17,7 +17,7 @@
  * Include Files
  **************************************************************************/
 
-#include <system.h>
+#include "system.h"
 #if defined(UPGRADE_ARM_STACK_UNWIND)
 #include <stdio.h>
 #include <stdarg.h>
@@ -67,6 +67,11 @@ void UnwPrintf(const char *format, ...)
     vprintf(format, args );
 }
 #endif
+
+Boolean UnwIsAddrThumb (Int32 pc, Int32 spsr)
+{
+  return (pc & 0x1) != 0 || (spsr & 0x20) != 0;
+}
 
 /** Invalidate all general purpose registers.
  */
