@@ -9,6 +9,9 @@ Source1001:    crash-worker.manifest
 BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(libtzplatform-config)
 BuildRequires:  cmake
+BuildRequires:  libelf-devel libelf
+BuildRequires:  libebl-devel libebl
+BuildRequires:  libdw-devel libdw
 
 Requires(post): coreutils
 Requires(post): tar
