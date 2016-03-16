@@ -453,6 +453,7 @@ int get_directory_usage(char *path)
 	struct dirent *de;
 	struct stat st;
 	size_t usage = 0;
+	char buf[256];
 	int fd = -1;
 
 	fd = open(path, O_RDONLY|O_NONBLOCK|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW|O_NOATIME);
@@ -467,7 +468,7 @@ int get_directory_usage(char *path)
 		if (!strncmp(de->d_name, ".", 2) || !strncmp(de->d_name, "..", 3))
 			continue;
 		if (fstatat(fd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) < 0) {
-			_SE("Failed to fstatat  %s: %s\n", de->d_name, strerror(errno));
+			_SE("Failed to fstatat  %s: %s\n", de->d_name, strerror_r(errno, buf, 256));
 			continue;
 		}
 		usage += st.st_size;
