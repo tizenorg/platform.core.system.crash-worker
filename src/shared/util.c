@@ -77,6 +77,7 @@ int system_command(char *command)
 int system_command_with_timeout(int timeout_seconds, char *command)
 {
 	const char *environ[] = { NULL };
+	char buf[256];
 
 	if (command == NULL)
 		return -1;
@@ -96,7 +97,7 @@ int system_command_with_timeout(int timeout_seconds, char *command)
 		argv[3] = 0;
 
 		execve("/bin/sh", argv, (char **)environ);
-		_SI("exec(%s): %s\n", command, strerror(errno));
+		_SI("exec(%s): %s\n", command, strerror_r(errno, buf, 256));
 		_exit(-1);
 	}
 	/* handle parent case */
@@ -293,13 +294,17 @@ int run_command_write_fd(char *cmd, int dfd)
 static int remove_dir_internal(int fd)
 {
 	DIR *dir;
+	struct dirent e;
 	struct dirent *de;
 	int subfd, ret = 0;
 
 	dir = fdopendir(fd);
 	if (!dir)
 		return -1;
-	while ((de = readdir(dir))) {
+
+	if ((readdir_r(dir, &e, &de)) != 0)
+		de = NULL;
+	while (de) {
 		if (de->d_type == DT_DIR) {
 			if (!strncmp(de->d_name, ".", 2) || !strncmp(de->d_name, "..", 3))
 				continue;
@@ -314,12 +319,12 @@ static int remove_dir_internal(int fd)
 			}
 			close(subfd);
 			if (unlinkat(fd, de->d_name, AT_REMOVEDIR) < 0) {
-				_SE("Couldn't unlinkat %s: %s\n", de->d_name, strerror(errno));
+				_SE("Couldn't unlinkat %s: %s\n", de->d_name, errno);
 				ret = -1;
 			}
 		} else {
 			if (unlinkat(fd, de->d_name, 0) < 0) {
-				_SE("Couldn't unlinkat %s: %s\n", de->d_name, strerror(errno));
+				_SE("Couldn't unlinkat %s: %s\n", de->d_name, errno);
 				ret = -1;
 			}
 		}
@@ -336,7 +341,7 @@ int remove_dir(const char *path, int del_dir)
 		return -1;
 	fd = open(path, O_RDONLY | O_NONBLOCK | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW);
 	if (fd < 0) {
-		_SE("Couldn't opendir %s: %s\n", path, strerror(errno));
+		_SE("Couldn't opendir %s: %s\n", path, errno);
 		return -errno;
 	}
 	ret = remove_dir_internal(fd);
@@ -344,42 +349,17 @@ int remove_dir(const char *path, int del_dir)
 
 	if (del_dir) {
 		if (rmdir(path)) {
-			_SE("Couldn't rmdir %s: %s\n", path, strerror(errno));
+			_SE("Couldn't rmdir %s: %s\n", path, errno);
 			ret = -1;
 		}
 	}
 	return ret;
 }
 
-int make_dir(const char *path, mode_t mode, const char *grname)
-{
-	mode_t old_mask;
-	struct group *group_entry;
-	int ret;
-
-	if (!grname || !path)
-		return -1;
-	if (access(path, F_OK) == 0)
-		return 0;
-	old_mask = umask(002);
-	ret = mkdir(path, mode);
-	if (ret < 0)
-		return -1;
-	group_entry = getgrnam(grname);
-	if (group_entry == NULL) {
-		umask(old_mask);
-		return -1;
-	}
-	if (chown(path, 0, group_entry->gr_gid) < 0)
-		_SW("can't chown (%s)\n", path);
-	umask(old_mask);
-
-	return 0;
-}
-
 int get_exec_pid(const char *execpath)
 {
 	DIR *dp;
+	struct dirent entry;
 	struct dirent *dentry;
 	int pid = -1, fd;
 	int ret;
@@ -394,7 +374,8 @@ int get_exec_pid(const char *execpath)
 	}
 
 	len = strlen(execpath) + 1;
-	while ((dentry = readdir(dp)) != NULL) {
+	readdir_r(dp, &entry, &dentry);
+	while (dentry != NULL) {
 		if (!isdigit(dentry->d_name[0]))
 			continue;
 
@@ -426,13 +407,16 @@ int get_exec_pid(const char *execpath)
 int get_file_count(char *path)
 {
 	DIR *dir;
+	struct dirent p;
 	struct dirent *dp;
 	int count = 0;
 
 	dir = opendir(path);
 	if (!dir)
 		return 0;
-	while ((dp = readdir(dir)) != NULL) {
+
+	readdir_r(dir, &p, &dp);
+	while (dp != NULL) {
 		const char *name = dp->d_name;
 		/* always skip "." and ".." */
 		if (name[0] == '.') {
@@ -450,9 +434,11 @@ int get_file_count(char *path)
 int get_directory_usage(char *path)
 {
 	DIR *dir;
+	struct dirent e;
 	struct dirent *de;
 	struct stat st;
 	size_t usage = 0;
+	char buf[256];
 	int fd = -1;
 
 	fd = open(path, O_RDONLY|O_NONBLOCK|O_DIRECTORY|O_CLOEXEC|O_NOFOLLOW|O_NOATIME);
@@ -463,11 +449,13 @@ int get_directory_usage(char *path)
 		close(fd);
 		return -1;
 	}
-	while ((de = readdir(dir))) {
+
+	readdir_r(dir, &e, &de);
+	while (de) {
 		if (!strncmp(de->d_name, ".", 2) || !strncmp(de->d_name, "..", 3))
 			continue;
 		if (fstatat(fd, de->d_name, &st, AT_SYMLINK_NOFOLLOW) < 0) {
-			_SE("Failed to fstatat  %s: %s\n", de->d_name, strerror(errno));
+			_SE("Failed to fstatat  %s: %s\n", de->d_name, strerror_r(errno, buf, 256));
 			continue;
 		}
 		usage += st.st_size;
