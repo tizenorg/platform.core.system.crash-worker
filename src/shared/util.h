@@ -41,8 +41,6 @@ int dump_file_write_fd(char *src, int dfd);
 
 int run_command_write_fd(char *cmd, int dfd);
 
-int make_dir(const char *path, mode_t mode, const char *grname);
-
 int remove_dir(const char *path, int del_dir);
 
 int get_exec_pid(const char *execpath);
