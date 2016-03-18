@@ -18,7 +18,7 @@
  * Nested Include Files
  **************************************************************************/
 
-#include <system.h>
+#include "system.h"
 #if defined(UPGRADE_ARM_STACK_UNWIND)
 #include "unwarminder.h"
 
@@ -32,7 +32,7 @@
  * function without unwinding a stack frame.  This prevents infinite loops
  * or corrupted program memory from preventing unwinding from progressing.
  */
-#define UNW_MAX_INSTR_COUNT 100
+#define UNW_MAX_INSTR_COUNT 200
 
 /** The size of the hash used to track reads and writes to memory.
  * This should be a prime value for efficiency.
@@ -97,6 +97,11 @@ typedef struct
 }
 MemData;
 
+#define REGS_REGULAR_NUM 13
+#define REG_SP 13
+#define REG_LR 14
+#define REG_PC 15
+#define REG_SPSR 16
 
 /** Structure that is used to keep track of unwinding meta-data.
  * This data is passed between all the unwinding functions.
@@ -104,16 +109,22 @@ MemData;
 typedef struct
 {
     /** The register values and meta-data. */
-    RegData regData[16];
+    RegData regData[17];
 
     /** Memory tracking data. */
     MemData memData;
+
+    /** Branches tracking data. */
+    MemData branchData;
 
     /** Pointer to the callback functions */
     const UnwindCallbacks *cb;
 
     /** Pointer to pass to the report function. */
     const void *reportData;
+
+    /** Pointer to last reported function. */
+    Int32 lastReported;
 }
 UnwState;
 
@@ -147,6 +158,8 @@ UnwState;
 /***************************************************************************
  *  Function Prototypes
  **************************************************************************/
+
+Boolean UnwIsAddrThumb (Int32 pc, Int32 spsr);
 
 UnwResult UnwStartArm       (UnwState * const state);
 
