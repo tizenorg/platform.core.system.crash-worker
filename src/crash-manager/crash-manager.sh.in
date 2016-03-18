@@ -31,6 +31,7 @@ log_path="${pfx}/${name}.log"
 mkdir -p "$CRASH_PATH" "$pfx"
 
 @CRASH_PIPE_PATH@ --save-core "$core_path" --report "$@" > "$info_path"
+@CRASH_STACK_PATH@ "$core_path" >> "$info_path"
 dump_systemstate -d -k -f "$log_path" || true
 
 tar czf "${temp_dir}/report.tar.gz" -C "$temp_dir" "$name"
