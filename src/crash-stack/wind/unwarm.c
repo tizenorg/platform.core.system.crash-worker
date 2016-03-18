@@ -17,7 +17,7 @@
  * Include Files
  **************************************************************************/
 
-#include <system.h>
+#include "system.h"
 #if defined(UPGRADE_ARM_STACK_UNWIND)
 #include <stdio.h>
 #include <stdarg.h>
@@ -68,6 +68,11 @@ void UnwPrintf(const char *format, ...)
 }
 #endif
 
+Boolean UnwIsAddrThumb (Int32 pc, Int32 spsr)
+{
+  return (pc & 0x1) != 0 || (spsr & 0x20) != 0;
+}
+
 /** Invalidate all general purpose registers.
  */
 void UnwInvalidateRegisterFile(RegData *regFile)
@@ -108,6 +113,9 @@ void UnwInitState(UnwState * const       state,   /**< Pointer to structure to f
 
     /* Invalidate all memory addresses */
     memset(state->memData.used, 0, sizeof(state->memData.used));
+    memset(state->branchData.used, 0, sizeof(state->branchData.used));
+
+    state->lastReported = 0;
 }
 
 
@@ -117,6 +125,7 @@ void UnwInitState(UnwState * const       state,   /**< Pointer to structure to f
  */
 Boolean UnwReportRetAddr(UnwState * const state, Int32 addr)
 {
+    state->lastReported = addr;
     /* Cast away const from reportData.
      *  The const is only to prevent the unw module modifying the data.
      */

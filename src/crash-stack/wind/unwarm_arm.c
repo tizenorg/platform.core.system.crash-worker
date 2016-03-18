@@ -17,7 +17,7 @@
  * Include Files
  **************************************************************************/
 
-#include <system.h>
+#include "system.h"
 #if defined(UPGRADE_ARM_STACK_UNWIND)
 #include <stdio.h>
 #include "unwarm.h"
@@ -102,7 +102,7 @@ UnwResult UnwStartArm(UnwState * const state)
                    state->regData[13].v, state->regData[15].v, instr);
 
         /* Check that the PC is still on Arm alignment */
-        if(state->regData[15].v & 0x3)
+        if(UnwIsAddrThumb(state->regData[REG_PC].v, state->regData[REG_SPSR].v))
         {
             UnwPrintd1("\nError: PC misalignment\n");
             return UNWIND_INCONSISTENT;
@@ -148,7 +148,7 @@ UnwResult UnwStartArm(UnwState * const state)
             }
 
             /* Determine the return mode */
-            if(state->regData[rn].v & 0x1)
+            if(UnwIsAddrThumb(state->regData[rn].v, state->regData[REG_SPSR].v))
             {
                 /* Branching to THUMB */
                 return UnwStartThumb(state);
@@ -652,7 +652,7 @@ UnwResult UnwStartArm(UnwState * const state)
                     UnwPrintd2("  Return PC=0x%x", state->regData[15].v);
 
                     /* Determine the return mode */
-                    if(state->regData[15].v & 0x1)
+                    if(UnwIsAddrThumb(state->regData[REG_PC].v, state->regData[REG_SPSR].v))
                     {
                         /* Branching to THUMB */
                         return UnwStartThumb(state);

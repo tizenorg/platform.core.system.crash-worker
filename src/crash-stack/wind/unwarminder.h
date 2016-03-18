@@ -19,7 +19,7 @@
  * Nested Include Files
  **************************************************************************/
 
-#include <system.h>
+#include "system.h"
 #if defined(UPGRADE_ARM_STACK_UNWIND)
 
 /***************************************************************************
@@ -130,6 +130,8 @@ typedef struct UnwindCallbacksTag
      * to read only an 8 bit value.
      */
     Boolean (*readB)(const Int32 address, Int8  *val);
+
+    Int32 (*getProloguePC)(const Int32 current_pc);
 
 #if defined(UNW_DEBUG)
     /** Print a formatted line for debug. */
