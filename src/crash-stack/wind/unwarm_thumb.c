@@ -17,7 +17,7 @@
  * Include Files
  **************************************************************************/
 
-#include <system.h>
+#include "system.h"
 #if defined(UPGRADE_ARM_STACK_UNWIND)
 #include <stdio.h>
 #include "unwarm.h"
@@ -67,6 +67,260 @@ static SignedInt16 signExtend11(Int16 value)
  * Global Functions
  **************************************************************************/
 
+static UnwResult Unw32DataProcessingModifiedImmediate (UnwState * const state, Int32 instr, Int32 instr2)
+{
+    Int8 op = (instr & (0xF << 5)) >> 5;
+    Int8 Rn = instr & 0xF;
+    Int8 S = (instr & (1 << 4)) >> 4;
+    Int8 Rd = (instr2 & (0xF << 8)) >> 8;
+
+    switch (op)
+    {
+      case 0:
+          if (0xF==Rd)
+          {
+              if (0==S) return UNWIND_ILLEGAL_INSTR;
+
+              UnwPrintd1("TST ...\n");
+          }
+          else
+          {
+              state->regData[Rd].o = REG_VAL_INVALID;
+              UnwPrintd1("AND ...\n");
+          }
+          break;
+      case 1:
+          state->regData[Rd].o = REG_VAL_INVALID;
+          UnwPrintd1("BIC ...\n");
+          break;
+      case 2:
+          state->regData[Rd].o = REG_VAL_INVALID;
+          if (0xF != Rn)
+              UnwPrintd1("ORR ...\n");
+          else
+              UnwPrintd1("MOV ...\n");
+          break;
+      case 3:
+          if (0xF != Rn)
+          {
+              state->regData[Rd].o = REG_VAL_INVALID;
+              UnwPrintd1("ORN ...\n");
+          }
+          else
+              UnwPrintd1("MVN ...\n");
+          break;
+      case 4:
+          if (0xF != Rd)
+          {
+              UnwPrintd1("EOR ...\n");
+              state->regData[Rd].o = REG_VAL_INVALID;
+          }
+          else
+          {
+              if (0==S) return UNWIND_ILLEGAL_INSTR;
+
+              UnwPrintd1("TEQ ...\n");
+          }
+          break;
+      case 8:
+          if (0xF != Rd)
+          {
+              UnwPrintd1("ADD ...\n");
+              state->regData[Rd].o = REG_VAL_INVALID;
+          }
+          else
+          {
+              if (0==S) return UNWIND_ILLEGAL_INSTR;
+
+              UnwPrintd1("CMN ...\n");
+          }
+          break;
+      case 10:
+          state->regData[Rd].o = REG_VAL_INVALID;
+          UnwPrintd1("ADC ...\n");
+          break;
+      case 11:
+          state->regData[Rd].o = REG_VAL_INVALID;
+          UnwPrintd1("SBC ...\n");
+          break;
+      case 13:
+          if (0xF != Rd)
+          {
+              state->regData[Rd].o = REG_VAL_INVALID;
+              UnwPrintd1("SUB ...\n");
+          }
+          else
+          {
+              if (0==S) return UNWIND_ILLEGAL_INSTR;
+
+              UnwPrintd1("CMP ...\n");
+          }
+          break;
+      case 14:
+          state->regData[Rd].o = REG_VAL_INVALID;
+          UnwPrintd1("RSB ...\n");
+          break;
+      default:
+          return UNWIND_ILLEGAL_INSTR;
+    }
+    return UNWIND_SUCCESS;
+}
+
+static UnwResult Unw32LoadWord (UnwState * const state, Int32 instr, Int32 instr2)
+{
+    Int8 op1 = (instr & (0x3 << 7)) >> 7;
+    Int8 Rn = instr & 0xF;
+//    Int8 op2 = (instr2 & (0x3F << 6)) >> 6;
+
+    if (1 == op1 && 0xF != Rn)
+    {
+        /* LDR imm */
+        Int8 Rt = (instr2 & (0xF << 12)) >> 12;
+        Int32 imm12 = instr2 & 0xFFF;
+
+        UnwPrintd4("LDR r%d, [r%d ,#0x%08x]\n", Rt, Rn, imm12);
+
+        imm12 += state->regData[Rn].v;
+
+        if(!UnwMemReadRegister(state, imm12, &state->regData[Rt]))
+        {
+            return UNWIND_DREAD_W_FAIL;
+        }
+    }
+    else if (0 == op1 && 0xF != Rn)
+    {
+        Int8 Rt = (instr2 & (0xF << 12)) >> 12;
+        Int32 imm8 = instr2 & 0xFF;
+        Int8 U = (instr2 & (1 << 9)) >> 9;
+        Int8 P = (instr2 & (1 << 10)) >> 10;
+        Int8 W = (instr2 & (1 << 8)) >> 8;
+        Int32 offset_addr;
+        Int32 addr;
+
+        UnwPrintd8("LDR r%d, [r%d%c,#%c0x%08x%c%c\n",
+            Rt, Rn,
+            P ? ' ' : ']',
+            U ? '+' : '-',
+            imm8,
+            P ? ']' : ' ',
+            W ? '!' : ' ');
+
+        offset_addr = state->regData[Rn].v + (U ? 1 : -1) * imm8;
+        addr = P ? offset_addr : state->regData[Rn].v;
+
+        if(!UnwMemReadRegister(state, addr, &state->regData[Rt]))
+        {
+            return UNWIND_DREAD_W_FAIL;
+        }
+
+        if (W) state->regData[Rn].v = offset_addr;
+    }
+//            else if (op1 < 2 && 0xF == Rn)
+//            {
+      /* LDR literal */
+//            }
+    else
+    {
+      /* UNDEFINED */
+        UnwPrintd1("????");
+        UnwInvalidateRegisterFile(state->regData);
+    }
+    return UNWIND_SUCCESS;
+}
+static UnwResult Unw32LoadStoreMultiple (UnwState * const state, Int32 instr, Int32 instr2)
+{
+    Int8 op = (instr & (0x3 << 7)) >> 7;
+    Int8 L = (instr & (0x1 << 4)) >> 4;
+    Int8 Rn = instr & 0xF;
+
+    UnwResult res = UNWIND_SUCCESS;
+
+    switch (op)
+    {
+        case 0:
+            if (0 == L) UnwPrintd1("SRS ...");
+            else
+            {
+                state->regData[REG_PC].o = REG_VAL_INVALID;
+                UnwPrintd1("LRE ...");
+            }
+            break;
+        case 1:
+            {
+                Int8 bitCount = 0;
+                Int16 register_list = (instr2 & 0x7FFF);
+                int i;
+
+                for (i = 0; i < 15; i++)
+                {
+                    if ((register_list & (0x1 << i)) != 0) bitCount++;
+                }
+
+                if (0 == L)
+                {
+                    Int8 W = (instr & (0x1 << 5)) >> 5;
+                    if (W) state->regData[Rn].v += 4*bitCount;
+                    UnwPrintd1("STM ...");
+                }
+                else
+                {
+                    Int8 W = (instr & (0x1 << 5)) >> 5;
+                    for (i = 0; i < 15; i++)
+                    {
+                        if ((register_list & (0x1 << i)) != 0)
+                            state->regData[i].o = REG_VAL_INVALID;
+                    }
+                    if (W)
+                    {
+                        if ((register_list & (1 << Rn)) == 0)
+                            state->regData[Rn].v += 4*bitCount;
+                        else
+                            state->regData[Rn].o = REG_VAL_INVALID;
+                    }
+                    if (13 != Rn)
+                    {
+                        UnwPrintd1("LDM ...");
+                    }
+                    else
+                    {
+                        UnwPrintd1("POP ...");
+                    }
+                }
+            }
+            break;
+        case 2:
+            if (0 == L)
+            {
+              /* STMDB / PUSH if Rn == 13 */
+              /* TODO */
+                if (13 != Rn)
+                {
+                    UnwPrintd1("STMDB ...");
+                }
+                else
+                {
+                    UnwPrintd1("PUSH ...");
+                }
+            }
+            else
+            {
+              /* LDMDB */
+            }
+            break;
+        case 3:
+            if (0 == L)
+            {
+              /* SRS */
+            }
+            else
+            {
+              /* RFE */
+            }
+            break;
+    }
+
+    return res;
+}
 
 UnwResult UnwStartThumb(UnwState * const state)
 {
@@ -87,7 +341,7 @@ UnwResult UnwStartThumb(UnwState * const state)
                    state->regData[13].v, state->regData[15].v, instr);
 
         /* Check that the PC is still on Thumb alignment */
-        if(!(state->regData[15].v & 0x1))
+        if(!UnwIsAddrThumb(state->regData[REG_PC].v, state->regData[REG_SPSR].v))
         {
             UnwPrintd1("\nError: PC misalignment\n");
             return UNWIND_INCONSISTENT;
@@ -432,6 +686,11 @@ UnwResult UnwStartThumb(UnwState * const state)
          *  ADD Rd, Hs
          *  ADD Hd, Rs
          *  ADD Hd, Hs
+         *  CMP Hd
+         *  MOV Rd
+         *  MOV Hd
+         *  BX
+         *  BLX
          */
         else if((instr & 0xfc00) == 0x4400)
         {
@@ -445,7 +704,7 @@ UnwResult UnwStartThumb(UnwState * const state)
             if(h2) rhs += 8;
             if(h1) rhd += 8;
 
-            if(op != 3 && !h1 && !h2)
+            if(op == 1 && !h1 && !h2)
             {
                 UnwPrintd1("\nError: h1 or h2 must be set for ADD, CMP or MOV\n");
                 return UNWIND_ILLEGAL_INSTR;
@@ -469,7 +728,7 @@ UnwResult UnwStartThumb(UnwState * const state)
                 case 2: /* MOV */
                     UnwPrintd5("MOV r%d, r%d\t; r%d %s",
                                rhd, rhs, rhd, M_Origin2Str(state->regData[rhs].o));
-                    state->regData[rhd].v += state->regData[rhs].v;
+                    state->regData[rhd].v  = state->regData[rhs].v;
                     state->regData[rhd].o  = state->regData[rhd].o;
                     break;
 
@@ -492,7 +751,7 @@ UnwResult UnwStartThumb(UnwState * const state)
                         state->regData[15].v = state->regData[rhs].v;
 
                         /* Determine the new mode */
-                        if(state->regData[rhs].v & 0x1)
+                        if(UnwIsAddrThumb(state->regData[rhs].v, state->regData[REG_SPSR].v))
                         {
                             /* Branching to THUMB */
 
@@ -513,6 +772,34 @@ UnwResult UnwStartThumb(UnwState * const state)
                     }
             }
         }
+        /* Format 9: load/store with immediate offset
+         *  LDR/STR Rd, [Rb, #imm]
+         */
+        else if ((instr & 0xe000) == 0x6000)
+        {
+            Int8 rd = instr & 0x7;
+            Int8 rb = (instr & (0x7 << 3)) >> 3;
+            Int32 offset5 = (instr & (0x1f << 6)) >> 6;
+
+            offset5 += state->regData[rb].v;
+
+            if ((instr & 0x0400) != 0)
+            {
+              /* This is LDR */
+
+              UnwPrintd3("LDR r%d, 0x%08x", rd, offset5);
+
+              if (!UnwMemReadRegister (state, offset5, &state->regData[rd]))
+              {
+                return UNWIND_DREAD_W_FAIL;
+              }
+            }
+            else
+            {
+            /* in STR case, ignore it (for now) */
+              UnwPrintd3("STR r%d, 0x%08x", rd, offset5);
+            }
+        }
         /* Format 9: PC-relative load
          *  LDR Rd,[PC, #imm]
          */
@@ -531,6 +818,11 @@ UnwResult UnwStartThumb(UnwState * const state)
             {
                 return UNWIND_DREAD_W_FAIL;
             }
+        }
+        else if((instr & 0xf800) == 0x4000)
+        {
+            /* in STR case, ignore it (for now) */
+            UnwPrintd1("STR ???");
         }
         /* Format 13: add offset to Stack Pointer
          *  ADD sp,#+imm
@@ -615,7 +907,7 @@ UnwResult UnwStartThumb(UnwState * const state)
                          *  the caller was from Thumb.  This would allow return
                          *  by BX for interworking APCS.
                          */
-                        if((state->regData[15].v & 0x1) == 0)
+                        if(!UnwIsAddrThumb(state->regData[REG_PC].v, state->regData[REG_SPSR].v))
                         {
                             UnwPrintd2("Warning: Return address not to Thumb: 0x%08x\n",
                                        state->regData[15].v);
@@ -706,6 +998,113 @@ UnwResult UnwStartThumb(UnwState * const state)
             UnwPrintd2(" New PC=%x", state->regData[15].v + 2);
 
         }
+        /* 32-bit instructions */
+        else if (((instr & 0xe000) == 0xe000) && ((instr & 0xf800) != 0xe00))
+        {
+            Int8 op1 = (instr & (0x3 << 11)) >> 11;
+            Int8 op2 = (instr & (0x7F << 4)) >> 4;
+            Int8 op;
+            UnwResult res = UNWIND_SUCCESS;
+
+            Int16 instr2;
+            /* read second part of this 32-bit instruction */
+            if(!state->cb->readH((state->regData[15].v + 2) & (~0x1), &instr2))
+            {
+                return UNWIND_IREAD_H_FAIL;
+            }
+
+            op = (instr2 & (1 << 15)) >> 15;
+
+            switch (op1)
+            {
+                case 1:
+                    if ((op2 & 0x64) == 0)
+                    {
+                      /* Load/store multiple */
+                      res = Unw32LoadStoreMultiple(state, instr, instr2);
+                    }
+                    else if ((op2 & 0x64) == 4)
+                    {
+                      /* Load/store dual, load/store exclusive, table branch */
+                    }
+                    else if ((op2 & 0x60) == 0x20)
+                    {
+                      /* Data-processing (shifted register) */
+                    }
+                    else /* if (op2 & 0x40 == 0x40) */
+                    {
+                      /* Coprocessor instructions */
+                    }
+                    break;
+                case 2:
+                    if (0 == op)
+                    {
+                        if ((op2 & 0x20) == 0)
+                        {
+                            /* Data processing (modified immediate) */
+                            res = Unw32DataProcessingModifiedImmediate(state, instr, instr2);
+                        }
+                        else
+                        {
+                            /* Data-processing (plain binary immediate) */
+                        }
+                    }
+                    else
+                    {
+                        /* Branches and miscellaneous control */
+                    }
+                    break;
+                case 3:
+                    if ((op2 & 0x71) == 0)
+                    {
+                        /* Store single data item */
+                    }
+                    else if ((op2 & 0x71) == 0x10)
+                    {
+                        /* Advanced SIMD element or structure load/store instructions */
+                    }
+                    else if ((op2 & 0x67) == 1)
+                    {
+                        /* Load byte, memory hints */
+                    }
+                    else if ((op2 & 0x67) == 3)
+                    {
+                        /* Load halfword, memory hints */
+                    }
+                    else if ((op2 & 0x67) == 5)
+                    {
+                        /* Load word */
+                        res = Unw32LoadWord (state, instr, instr2);
+                    }
+                    else if ((op2 & 0x67) == 7)
+                    {
+                        res = UNWIND_ILLEGAL_INSTR;
+                    }
+                    else if ((op2 & 0x70) == 0x20)
+                    {
+                        /* Data-processing (register) */
+                    }
+                    else if ((op2 & 0x78) == 0x30)
+                    {
+                        /* Multiply, multiply accumulate, and absolute difference */
+                    }
+                    else if ((op2 & 0x78) == 0x38)
+                    {
+                        /* Long multiply, long multiply accumulate, and divide */
+                    }
+                    else if ((op2 & 0x80) == 0x80)
+                    {
+                        /* Coprocessor instructions */
+                    }
+                    else
+                        res = UNWIND_ILLEGAL_INSTR;
+            }
+
+            state->regData[REG_PC].v += 2;
+
+            if (UNWIND_SUCCESS != res)
+                return res;
+        }
         else
         {
             UnwPrintd1("????");
@@ -726,7 +1125,11 @@ UnwResult UnwStartThumb(UnwState * const state)
         UnwMemHashGC(state);
 
         t--;
-        if(t == 0) return UNWIND_EXHAUSTED;
+        if(t == 0)
+        {
+            /* TODO: try scanning prologue - here */
+            return UNWIND_EXHAUSTED;
+        }
 
     }
     while(!found);
