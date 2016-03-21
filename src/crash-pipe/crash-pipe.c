@@ -98,6 +98,8 @@ static int procfs_read_fileline(const char *pid, const char *filename, char *out
      return ret;
 
 err:
+     if (fd >= 0)
+       close(fd);
      free(path);
      *outbuf = 0;
      return ret;
@@ -160,7 +162,7 @@ static void report(int argc, char *argv[])
      for (i = 0; i < NELEMS(proc_filedesc); ++ i) {
 	  n = procfs_read_fileline(pidstr, proc_filedesc[i].file, proc_readbuf, sizeof(proc_readbuf));
 	  if (n < 0)
-	       snprintf(proc_readbuf, sizeof(proc_readbuf), "Error (%s)", strerror(-n));
+	       snprintf(proc_readbuf, sizeof(proc_readbuf), "Error (%d)", -n);
 
 	  if (n < 0 || proc_filedesc[i].is_multiline == 0)
 	       printf("%16s: %s\n", proc_filedesc[i].desc, proc_readbuf);
@@ -179,8 +181,8 @@ static int save_core(const char *core_path)
 
      fd = open(core_path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
      if (fd == -1) {
-	  syslog(LOG_ERR, "crash-pipe: Unable to save core file to %s: %s\n",
-		 core_path, strerror(errno));
+	  syslog(LOG_ERR, "crash-pipe: Unable to save core file to %s: (%d)\n",
+		 core_path, errno);
 	  return -1;
      }
 
@@ -193,11 +195,12 @@ static int save_core(const char *core_path)
 		    syslog(LOG_ERR, "crash-pipe: Error while saving core file %s: %s. Removing core.\n",
 			   core_path, strerror(errno));
 		    (void)unlink(core_path); // XXX check errors here too
-		    return 0;
+		    goto out;
 	       }
 	  }
      }
 
+out:
      close(fd);
 
      return 0;
@@ -209,7 +212,7 @@ int main(int argc, char *argv[])
      int c;
      int opt_report = 0;
      char *opt_save_core = NULL;
-     _Bool ret = 1;
+     int ret = 1;
 
      prctl(PR_SET_DUMPABLE, 0);
 
