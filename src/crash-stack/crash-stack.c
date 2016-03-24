@@ -236,7 +236,7 @@ int main(int argc, char **argv)
   for (it = 0; it != callstack.elems; ++it)
   {
     if (sizeof (callstack.tab[0]) > 4)
-      printf ("0x%016llx: ", (int64_t)callstack.tab[it]);
+      printf ("0x%016llx: ", (long long)callstack.tab[it]);
     else
       printf ("0x%08x: ", (int32_t)callstack.tab[it]);
     Dwfl_Module *module = dwfl_addrmodule (dwfl, callstack.tab[it]);
