@@ -36,15 +36,15 @@
 #include "shared/util.h"
 #include "shared/log.h"
 
-#define DLOG_BACKEND_PATH "/run/dloginit.conf"
+#define DLOG_BACKEND_PATH CRASH_SYS_RUN"/dloginit.conf"
 
 #define FILE_PERM (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)
 static struct dump_item {
 	const char *title;
 	const char *path;
 } dump_item[] = {
-	{"==== Binary version "            , "/etc/info.ini"},
-	{"==== Tizen version "             , "/etc/tizen-release"},
+	{"==== Binary version "            , CRASH_SYS_RO_ETC"/info.ini"},
+	{"==== Tizen version "             , CRASH_SYS_RO_ETC"/tizen-release"},
 	{"==== Kernel version "            , "/proc/version"},
 	{"==== Boot arguments "            , "/proc/cmdline"},
 	{"==== CPU & system architecture " , "/proc/cpuinfo"},
@@ -111,6 +111,8 @@ int main(int argc, char *argv[]) {
 	bool arg_dlog = false;
 	bool arg_dmesg = false;
 	char timestr[80];
+	char buf[256];
+	size_t buf_len = sizeof(buf);
 	time_t cur_time;
 	struct tm gm_tm;
 	struct tm loc_tm;
@@ -173,17 +175,20 @@ int main(int argc, char *argv[]) {
 	dpercent = get_disk_used_percent("/opt");
 	if (90 < dpercent) {
 		fprintf_fd(out_fd, "\n==== System disk space usage detail - %d\% (/bin/du -ah /opt)\n", dpercent);
-		ret = run_command_write_fd("/usr/bin/du -ah /opt --exclude=/opt/usr", out_fd);
+		snprintf(buf, buf_len, "%s/du -ah /opt", CRASH_SYS_BIN);
+		ret = run_command_write_fd(buf, out_fd);
 		if (ret < 0)
 			goto exit_close;
 	}
 	fprintf_fd(out_fd, "\n==== System timezone (ls -al /opt/etc/localtime)\n");
-	ret = run_command_write_fd("ls -al /opt/etc/localtime", out_fd);
+	snprintf(buf, buf_len, "ls -al %s/localtime", CRASH_SYS_ETC);
+	ret = run_command_write_fd(buf, out_fd);
 	if (ret < 0)
 		goto exit_close;
 
 	fprintf_fd(out_fd, "\n==== System summary (/usr/bin/top -bcH -n 1)\n");
-	ret = run_command_write_fd("COLUMNS=200 /usr/bin/top -bcH -n 1", out_fd);
+	snprintf(buf, buf_len, "COLUMNS=200 %s/top -bcH -n 1", CRASH_SYS_BIN);
+	ret = run_command_write_fd(buf, out_fd);
 	if (ret < 0)
 		goto exit_close;
 
@@ -194,20 +199,24 @@ int main(int argc, char *argv[]) {
 
 	if (is_root) {
 		fprintf_fd(out_fd, "\n==== System memory statistics (/usr/bin/memps -v)\n");
-		ret = run_command_write_fd("/usr/bin/memps -v", out_fd);
+		snprintf(buf, buf_len, "%s/memps -v", CRASH_SYS_BIN);
+		ret = run_command_write_fd(buf, out_fd);
 		if (ret < 0)
 			goto exit_close;
 
 		fprintf_fd(out_fd, "\n==== System configuration (/usr/bin/vconftool get memory, db, file)\n");
-		ret = run_command_write_fd("/usr/bin/vconftool get memory/ -r", out_fd);
+		snprintf(buf, buf_len, "%s/vconftool get memory/ -r", CRASH_SYS_BIN);
+		ret = run_command_write_fd(buf, out_fd);
 		if (ret < 0)
 			goto exit_close;
 
-		ret = run_command_write_fd("/usr/bin/vconftool get db/ -r", out_fd);
+		snprintf(buf, buf_len, "%s/vconftool get db/ -r", CRASH_SYS_BIN);
+		ret = run_command_write_fd(buf, out_fd);
 		if (ret < 0)
 			goto exit_close;
 
-		ret = run_command_write_fd("/usr/bin/vconftool get file/ -r", out_fd);
+		snprintf(buf, buf_len, "%s/vconftool get file/ -r", CRASH_SYS_BIN);
+		ret = run_command_write_fd(buf, out_fd);
 		if (ret < 0)
 			goto exit_close;
 	}
@@ -222,24 +231,28 @@ int main(int argc, char *argv[]) {
 	if (arg_dlog) {
 		if (dlogutil_supported()) {
 			fprintf_fd(out_fd, "\n==== main log messages (/dev/log_main)\n");
-			ret = run_command_write_fd("/usr/bin/dlogutil -d -v dump -b main", out_fd);
+			snprintf(buf, buf_len, "%s/dlogutil -d -v dump -b main", CRASH_SYS_BIN);
+			ret = run_command_write_fd(buf, out_fd);
 			if (ret < 0)
 				goto exit_close;
 
 			if(is_root) {
 				fprintf_fd(out_fd, "\n==== system log messages (/dev/log_system)\n");
-				ret = run_command_write_fd("/usr/bin/dlogutil -d -v dump -b system", out_fd);
+				snprintf(buf, buf_len, "%s/dlogutil -d -v dump -b system", CRASH_SYS_BIN);
+				ret = run_command_write_fd(buf, out_fd);
 				if (ret < 0)
 					goto exit_close;
 
 				fprintf_fd(out_fd, "\n==== radio log messages (/dev/log_radio)\n");
-				ret = run_command_write_fd("/usr/bin/dlogutil -d -v dump -b radio", out_fd);
+				snprintf(buf, buf_len, "%s/dlogutil -d -v dump -b radio", CRASH_SYS_BIN);
+				ret = run_command_write_fd(buf, out_fd);
 				if (ret < 0)
 					goto exit_close;
 			}
 		} else {
 			fprintf_fd(out_fd, "\n==== Log messages (journalctl)\n");
-			ret = run_command_write_fd("/usr/bin/journalctl", out_fd);
+			snprintf(buf, buf_len, "%s/journalctl", CRASH_SYS_BIN);
+			ret = run_command_write_fd(buf, out_fd);
 			if (ret < 0)
 				goto exit_close;
 		}

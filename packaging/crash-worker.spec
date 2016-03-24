@@ -33,6 +33,9 @@ export CFLAGS+=" -Werror"
 %cmake . \
 	   -DCMAKE_INSTALL_PREFIX=%{_prefix} \
 	   -DTZ_SYS_BIN=%{TZ_SYS_BIN} \
+	   -DTZ_SYS_ETC=%{TZ_SYS_ETC} \
+	   -DTZ_SYS_RO_ETC=%{TZ_SYS_RO_ETC} \
+	   -DTZ_SYS_RUN=%{TZ_SYS_RUN} \
 	   -DCRASH_PATH=%{crash_path} \
 	   -DCRASH_TEMP=%{crash_temp} \
 	   -DCRASH_PIPE_PATH=%{_libexecdir}/crash-pipe
