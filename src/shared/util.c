@@ -84,7 +84,7 @@ int system_command_with_timeout(int timeout_seconds, char *command)
 	pid_t pid = fork();
 	/* handle error case */
 	if (pid < 0) {
-		_E("fork: %s\n", strerror(errno));
+		_E("fork: %d\n", errno);
 		return pid;
 	}
 	/* handle child case */
@@ -309,7 +309,7 @@ static int remove_dir_internal(int fd)
 				continue;
 			subfd = openat(fd, de->d_name, O_RDONLY | O_DIRECTORY);
 			if (subfd < 0) {
-				_SE("Couldn't openat %s: %s\n", de->d_name, strerror(errno));
+				_SE("Couldn't openat %s: %d\n", de->d_name, errno);
 				ret = -1;
 				continue;
 			}

@@ -192,8 +192,8 @@ static int save_core(const char *core_path)
 	  for (n = 0, remaining = readb ; remaining > 0; remaining -= n) {
 	       n = write(fd, buf, remaining);
 	       if (n == -1) {
-		    syslog(LOG_ERR, "crash-pipe: Error while saving core file %s: %s. Removing core.\n",
-			   core_path, strerror(errno));
+		    syslog(LOG_ERR, "crash-pipe: Error while saving core file %s: %d. Removing core.\n",
+			   core_path, errno);
 		    (void)unlink(core_path); // XXX check errors here too
 		    goto out;
 	       }
