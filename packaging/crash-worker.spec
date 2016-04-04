@@ -22,7 +22,7 @@ crash-manager
 
 #Path to store logs and coredump files
 %define crash_root_path %{TZ_SYS_SHARE}/crash
-%define crash_path      %{crash_root_path}/dump
+%define crash_path      %{TZ_SYS_CRASH}
 %define crash_temp      %{crash_root_path}/temp
 
 %build
