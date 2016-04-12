@@ -181,8 +181,7 @@ static int save_core(const char *core_path)
 
      fd = open(core_path, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
      if (fd == -1) {
-	  syslog(LOG_ERR, "crash-pipe: Unable to save core file to %s: (%d)\n",
-		 core_path, errno);
+	  syslog(LOG_ERR, "crash-pipe: Unable to save core file to %s: %m\n", core_path);
 	  return -1;
      }
 
@@ -192,8 +191,7 @@ static int save_core(const char *core_path)
 	  for (n = 0, remaining = readb ; remaining > 0; remaining -= n) {
 	       n = write(fd, buf, remaining);
 	       if (n == -1) {
-		    syslog(LOG_ERR, "crash-pipe: Error while saving core file %s: %d. Removing core.\n",
-			   core_path, errno);
+		    syslog(LOG_ERR, "crash-pipe: Error while saving core file %s: %m. Removing core.\n", core_path);
 		    (void)unlink(core_path); // XXX check errors here too
 		    goto out;
 	       }
