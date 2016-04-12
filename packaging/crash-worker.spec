@@ -9,6 +9,9 @@ Source1001:    crash-worker.manifest
 BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(libtzplatform-config)
 BuildRequires:  cmake
+BuildRequires:  libelf-devel libelf
+BuildRequires:  libebl-devel libebl
+BuildRequires:  libdw-devel libdw
 
 Requires(post): coreutils
 Requires(post): tar
@@ -35,7 +38,8 @@ export CFLAGS+=" -Werror"
 	   -DTZ_SYS_BIN=%{TZ_SYS_BIN} \
 	   -DCRASH_PATH=%{crash_path} \
 	   -DCRASH_TEMP=%{crash_temp} \
-	   -DCRASH_PIPE_PATH=%{_libexecdir}/crash-pipe
+	   -DCRASH_PIPE_PATH=%{_libexecdir}/crash-pipe \
+	   -DCRASH_STACK_PATH=%{_libexecdir}/crash-stack
 
 make %{?jobs:-j%jobs}
 
