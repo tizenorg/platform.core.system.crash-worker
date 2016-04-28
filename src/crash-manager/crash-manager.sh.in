@@ -7,6 +7,8 @@ PATH=/bin:/usr/bin
 CRASH_PATH="@CRASH_PATH@"
 CRASH_TEMP="@CRASH_TEMP@"
 
+DEBUG=1
+
 # Expected invocation from kernel:
 #
 #   argv0 PID UID GID SIGNAL TIME CMD
@@ -30,8 +32,14 @@ log_path="${pfx}/${name}.log"
 
 mkdir -p "$CRASH_PATH" "$pfx"
 
-@CRASH_PIPE_PATH@ --save-core "$core_path" --report "$@" > "$info_path"
-@CRASH_STACK_PATH@ "$core_path" >> "$info_path"
+if [ $DEBUG -eq 1 ]
+then
+  @CRASH_PIPE_PATH@ --save-core "$core_path" --report "$@" > "$info_path"
+  @CRASH_STACK_PATH@ "$core_path" >> "$info_path"
+else
+  @CRASH_PIPE_PATH@ --report "$@" > "$info_path"
+  @CRASH_STACK_PATH@ --pid "$pid" >> "$info_path"
+fi
 dump_systemstate -d -k -f "$log_path" || true
 
 tar czf "${temp_dir}/report.tar.gz" -C "$temp_dir" "$name"
