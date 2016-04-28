@@ -2,10 +2,12 @@
 #include "wind/unwarm.h"
 
 #include <string.h>
+#include <sys/ptrace.h>
 
 static Elf *g_core = NULL;
 static Dwfl *g_dwfl = NULL;
 static Mappings *g_mappings = NULL;
+static pid_t g_pid = 0;
 
 struct Regs
 {
@@ -16,28 +18,24 @@ struct Regs
   Dwarf_Addr spsr;
 };
 
+typedef struct Regs Regs;
 static Regs g_regs;
-
-Regs *get_regs_struct (void)
-{
-  return &g_regs;
-}
 
 void *get_place_for_register_value (const char *regname, int regnum)
 {
-  if (strcmp (regname, "pc") == 0)
+  if (strcmp (regname, "pc") == 0 || REG_PC == regnum)
   {
     return &g_regs.pc;
   }
-  else if (strcmp (regname, "sp") == 0)
+  else if (strcmp (regname, "sp") == 0 || REG_SP == regnum)
   {
     return &g_regs.sp;
   }
-  else if (strcmp (regname, "lr") == 0)
+  else if (strcmp (regname, "lr") == 0 || REG_LR == regnum)
   {
     return &g_regs.lr;
   }
-  else if (strcmp (regname, "spsr") == 0)
+  else if (strcmp (regname, "spsr") == 0 || REG_SPSR == regnum)
   {
     return &g_regs.spsr;
   }
@@ -113,6 +111,14 @@ Boolean readT (Int32 a, void *v, size_t size)
   {
     memcpy (v, data->d_buf, size);
     return TRUE;
+  }
+
+  /* Still no data, but we have a process - read memory with ptrace */
+  if (NULL == data && g_pid > 1)
+  {
+     long val = ptrace (PTRACE_PEEKDATA, g_pid, a, NULL);
+     memcpy (v, &val, size);
+     return TRUE;
   }
 
   return FALSE;
@@ -191,7 +197,7 @@ static Int32 getProloguePC (Int32 current_pc)
     return result;
 }
 
-void create_crash_stack (Regs *regs, Dwfl *dwfl, Elf *core, Mappings *mappings, Callstack *callstack)
+void create_crash_stack (Dwfl *dwfl, Elf *core, pid_t pid, Mappings *mappings, Callstack *callstack)
 {
   UnwindCallbacks callbacks =
   {
@@ -210,23 +216,24 @@ void create_crash_stack (Regs *regs, Dwfl *dwfl, Elf *core, Mappings *mappings, 
   g_dwfl = dwfl;
   g_core = core;
   g_mappings = mappings;
+  g_pid = pid;
 
-  callstack->tab[0] = regs->pc;
+  callstack->tab[0] = g_regs.pc;
   callstack->elems = 1;
 
-  UnwInitState (&state, &callbacks, callstack, regs->pc, regs->sp);
+  UnwInitState (&state, &callbacks, callstack, g_regs.pc, g_regs.sp);
   int i;
   for (i = 0; i < REGS_REGULAR_NUM; i++)
   {
-    state.regData[i].v = regs->regs[i];
+    state.regData[i].v = g_regs.regs[i];
     state.regData[i].o = REG_VAL_FROM_CONST;
   }
-  state.regData[REG_LR].v = regs->lr;
+  state.regData[REG_LR].v = g_regs.lr;
   state.regData[REG_LR].o = REG_VAL_FROM_STACK;
-  state.regData[REG_SPSR].v = regs->spsr;
+  state.regData[REG_SPSR].v = g_regs.spsr;
   state.regData[REG_SPSR].o = REG_VAL_FROM_CONST;
 
-  if (UnwIsAddrThumb (regs->pc, regs->spsr))
+  if (UnwIsAddrThumb (g_regs.pc, g_regs.spsr))
     UnwStartThumb (&state);
   else
     UnwStartArm (&state);
