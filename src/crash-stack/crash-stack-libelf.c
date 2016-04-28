@@ -16,17 +16,12 @@ static int thread_callback (Dwfl_Thread *thread, void *thread_arg)
   return DWARF_CB_ABORT;
 }
 
-Regs *get_regs_struct (void)
-{
-  return 0;
-}
-
 void *get_place_for_register_value (const char *regname, int regnum)
 {
   return 0;
 }
 
-void create_crash_stack (Regs *regs, Dwfl *dwfl, Elf *core, Mappings *mappings, Callstack *callstack)
+void create_crash_stack (Dwfl *dwfl, Elf *core, pid_t pid, Mappings *mappings, Callstack *callstack)
 {
   callstack->elems = 0;
   dwfl_getthreads (dwfl, thread_callback, callstack);

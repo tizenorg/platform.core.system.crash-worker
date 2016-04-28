@@ -12,6 +12,20 @@
 #include "crash-stack.h"
 #include <string.h>
 #include <elfutils/version.h>
+#include <getopt.h>
+#include <sys/ptrace.h>
+#include <sys/uio.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+enum {
+    OPT_PID
+};
+
+const struct option opts[] = {
+    { "pid", required_argument, 0, OPT_PID },
+    { 0, 0, 0, 0 }
+};
 
 extern char *__cxa_demangle (const char *mangled_name, char *output_buffer,
 			     size_t *length, int *status);
@@ -36,6 +50,7 @@ static int module_callback (Dwfl_Module *module, void **userdata,
       mappings->elems++;
     }
   }
+  fprintf(stderr, "Got module %s @0x%llx\n", name, (long long)address);
   return DWARF_CB_OK;
 }
 
@@ -200,182 +215,294 @@ static char *try_symbol_from_elfs (Elf *core, Elf_Data *notes, uintptr_t address
 
 int main(int argc, char **argv)
 {
+  int c;
+  pid_t pid = 0;
+
+  const char *core_file_name;
+
   prctl (PR_SET_DUMPABLE, 0);
 
-  if (argc != 2)
+  while ((c = getopt_long_only(argc, argv, "", opts, NULL)) != -1)
   {
-    fprintf (stderr, "Usage: %s <core-file>\n", argv[0]);
-    return 1;
+    if (c == OPT_PID)
+    {
+      pid = atoi(optarg);
+    }
   }
 
-  int core_fd = open (argv[1], O_RDONLY);
-  if (core_fd < 0)
-  {
-    perror (argv[1]);
-    return 2;
-  }
+  core_file_name = argv[optind];
 
   elf_version (EV_CURRENT);
 
-  Elf *core = elf_begin (core_fd, ELF_C_READ_MMAP, NULL);
-  if (core == NULL)
-  {
-    fprintf (stderr, "%s : Can't open ELF (%s)\n", argv[1], elf_errmsg(-1));
-    return 3;
-  }
+  /* First, prepare dwfl and modules */
+  Elf *core = 0;
+  int core_fd = -1;
+  Dwfl *dwfl = 0;
 
-  const Dwfl_Callbacks core_callbacks =
+  if (pid > 1)
   {
-    .find_elf = dwfl_build_id_find_elf,
-    .find_debuginfo = dwfl_standard_find_debuginfo,
-    .section_address = NULL,
-    .debuginfo_path = NULL
-  };
+    int status;
+    pid_t stopped_pid;
 
-  Dwfl *dwfl = dwfl_begin (&core_callbacks);
-  if (dwfl == NULL)
-  {
-    fprintf (stderr, "%s : Can't start dwfl (%s)\n", argv[1], dwfl_errmsg(-1));
-    return 4;
-  }
+    printf ("Running for PID %d\n", pid);
+
+    if (ptrace (PTRACE_SEIZE, pid, NULL, PTRACE_O_TRACEEXIT) != 0)
+    {
+      fprintf(stderr, "PTRACE_SEIZE failed on PID %d\n", pid);
+      return 1000;
+    }
+
+    stopped_pid = waitpid(pid, &status, 0);
+    if (stopped_pid == -1 || stopped_pid != pid || !WIFSTOPPED(status))
+    {
+      fprintf(stderr, "waitpid failed: %m, stopped_pid=%d, status=%d\n", stopped_pid, status);
+      return 1002;
+    }
+
+    const Dwfl_Callbacks proc_callbacks =
+    {
+      .find_elf = dwfl_linux_proc_find_elf,
+      .find_debuginfo = dwfl_standard_find_debuginfo,
+      .section_address = NULL,
+      .debuginfo_path = NULL
+    };
+
+    dwfl = dwfl_begin (&proc_callbacks);
+    if (dwfl == NULL)
+    {
+      fprintf (stderr, "process %d : Can't start dwfl (%s)\n", pid, dwfl_errmsg(-1));
+      return 1004;
+    }
+
+    if (dwfl_linux_proc_report (dwfl, pid) < 0)
+    {
+      fprintf (stderr, "process %d : dwfl report failed (%s)\n", pid, dwfl_errmsg(-1));
+      return 5;
+    }
 
 #if _ELFUTILS_PREREQ(0,158)
-  if (dwfl_core_file_report (dwfl, core, NULL) < 0)
+    if (dwfl_linux_proc_attach (dwfl, pid, true) < 0)
+    {
+      fprintf (stderr, "process %s : dwfl attach failed (%s)\n", pid, dwfl_errmsg(-1));
+      return 6;
+    }
+#endif
+  }
+  else
+  {
+    if (argc != 2)
+    {
+      fprintf (stderr, "Usage: [--pid <pid> | %s <core-file>]\n", argv[0]);
+      return 1;
+    }
+
+    core_fd = open (core_file_name, O_RDONLY);
+    if (core_fd < 0)
+    {
+      perror (core_file_name);
+      return 2;
+    }
+
+    core = elf_begin (core_fd, ELF_C_READ_MMAP, NULL);
+    if (core == NULL)
+    {
+      fprintf (stderr, "%s : Can't open ELF (%s)\n", core_file_name, elf_errmsg(-1));
+      return 3;
+    }
+
+    const Dwfl_Callbacks core_callbacks =
+    {
+      .find_elf = dwfl_build_id_find_elf,
+      .find_debuginfo = dwfl_standard_find_debuginfo,
+      .section_address = NULL,
+      .debuginfo_path = NULL
+    };
+
+    dwfl = dwfl_begin (&core_callbacks);
+    if (dwfl == NULL)
+    {
+      fprintf (stderr, "%s : Can't start dwfl (%s)\n", core_file_name, dwfl_errmsg(-1));
+      return 4;
+    }
+
+#if _ELFUTILS_PREREQ(0,158)
+    if (dwfl_core_file_report (dwfl, core, NULL) < 0)
 #else
-  if (dwfl_core_file_report (dwfl, core) < 0)
+    if (dwfl_core_file_report (dwfl, core) < 0)
 #endif
-  {
-    fprintf (stderr, "%s : dwfl report failed (%s)\n", argv[1], dwfl_errmsg(-1));
-    return 5;
-  }
+    {
+      fprintf (stderr, "%s : dwfl report failed (%s)\n", core_file_name, dwfl_errmsg(-1));
+      return 5;
+    }
 
 #if _ELFUTILS_PREREQ(0,158)
-  if (dwfl_core_file_attach (dwfl, core) < 0)
-  {
-    fprintf (stderr, "%s : dwfl attach failed (%s)\n", argv[1], dwfl_errmsg(-1));
-    return 6;
-  }
+    if (dwfl_core_file_attach (dwfl, core) < 0)
+    {
+      fprintf (stderr, "%s : dwfl attach failed (%s)\n", core_file_name, dwfl_errmsg(-1));
+      return 6;
+    }
 #endif
-
-  Regs *regs = get_regs_struct();
+  }
 
   Mappings mappings;
   mappings.elems = 0;
 
   dwfl_getmodules (dwfl, module_callback, &mappings, 0);
+  Elf_Data *notes = 0;
 
-  GElf_Phdr mem;
-  GElf_Phdr *phdr = gelf_getphdr (core, 0, &mem);
-  if (phdr == NULL || phdr->p_type != PT_NOTE)
+  /* Now, get registers */
+  if (pid > 1)
   {
-    fprintf (stderr, "%s : Missing note section at the first position in core file\n", argv[1]);
-    return 8;
-  }
+    struct iovec data;
+    uintptr_t regbuf[20];
 
-  Elf_Data *notes = elf_getdata_rawchunk (core, phdr->p_offset, phdr->p_filesz, ELF_T_NHDR);
-  if (notes == NULL)
-  {
-    fprintf (stderr, "%s : error getting notes (%s)\n", argv[1], dwfl_errmsg(-1));
-    return 9;
-  }
+    data.iov_base = regbuf;
+    data.iov_len = sizeof (regbuf);
 
-  Ebl *ebl = ebl_openbackend (core);
-  if (ebl == NULL)
-  {
-    fprintf (stderr, "%s : Can't initialize ebl\n", argv[1]);
-    return 7;
-  }
-
-  GElf_Nhdr nhdr;
-  size_t name_pos;
-  size_t desc_pos;
-  size_t pos = 0;
-  size_t new_pos = 0;
-  int got_regs = 0;
-  /* registers should be in the first note! */
-  while ((new_pos = gelf_getnote (notes, pos, &nhdr, &name_pos, &desc_pos)) > 0)
-  {
-    if (nhdr.n_type == NT_PRSTATUS && !got_regs)
+    if (ptrace (PTRACE_GETREGSET, pid, NT_PRSTATUS, &data) != 0)
     {
-      GElf_Word regs_offset;
-      size_t nregloc;
-      const Ebl_Register_Location *reglocs;
-      size_t nitems;
-      const Ebl_Core_Item *items;
+      fprintf(stderr, "PTRACE_GETREGSET failed on PID %d\n", pid);
+      return 1001;
+    }
 
-      got_regs = 1;
+    printf ("Got %d bytes from GETREGSET\n", data.iov_len);
 
-      if (0 == ebl_core_note (ebl, &nhdr, "CORE", &regs_offset, &nregloc, &reglocs, &nitems, &items))
+    data.iov_base = regbuf;
+    data.iov_len = sizeof (regbuf);
+
+    if (ptrace (PTRACE_GETREGSET, pid, NT_PRSTATUS, &data) != 0)
+    {
+      fprintf(stderr, "PTRACE_GETREGSET failed on PID %d\n", pid);
+      return 1001;
+    }
+
+    printf ("Got %d bytes from GETREGSET\n", data.iov_len);
+    size_t i = 0;
+    while (i * sizeof (regbuf[0]) < data.iov_len && i < sizeof (regbuf)/sizeof (regbuf[0]))
+    {
+      void *reg = get_place_for_register_value ("", i);
+
+      if (NULL != reg)
+        memcpy (reg, &regbuf[i], sizeof (regbuf[i]));
+
+      fprintf(stderr, "r%d = 0x%llx\n", i, (long long)regbuf[i]);
+      i++;
+    }
+
+  }
+  else
+  {
+    GElf_Phdr mem;
+    GElf_Phdr *phdr = gelf_getphdr (core, 0, &mem);
+    if (phdr == NULL || phdr->p_type != PT_NOTE)
+    {
+      fprintf (stderr, "%s : Missing note section at the first position in core file\n", core_file_name);
+      return 8;
+    }
+
+    notes = elf_getdata_rawchunk (core, phdr->p_offset, phdr->p_filesz, ELF_T_NHDR);
+    if (notes == NULL)
+    {
+      fprintf (stderr, "%s : error getting notes (%s)\n", core_file_name, dwfl_errmsg(-1));
+      return 9;
+    }
+
+    Ebl *ebl = ebl_openbackend (core);
+    if (ebl == NULL)
+    {
+      fprintf (stderr, "%s : Can't initialize ebl\n", core_file_name);
+      return 7;
+    }
+
+    GElf_Nhdr nhdr;
+    size_t name_pos;
+    size_t desc_pos;
+    size_t pos = 0;
+    size_t new_pos = 0;
+    int got_regs = 0;
+    /* registers should be in the first note! */
+    while ((new_pos = gelf_getnote (notes, pos, &nhdr, &name_pos, &desc_pos)) > 0)
+    {
+      if (nhdr.n_type == NT_PRSTATUS && !got_regs)
       {
-        fprintf (stderr, "%s : error parsing notes\n", argv[1]);
-        return 100;
-      }
+        GElf_Word regs_offset;
+        size_t nregloc;
+        const Ebl_Register_Location *reglocs;
+        size_t nitems;
+        const Ebl_Core_Item *items;
 
-      const char *regs_location = (const char *)(notes->d_buf) + pos + desc_pos + regs_offset;
-      unsigned i;
+        got_regs = 1;
 
-      for (i = 0; i < nregloc; i++)
-      {
-        const char *register_location = regs_location + reglocs[i].offset;
-        int regnum;
-        for (regnum = reglocs[i].regno; regnum < reglocs[i].regno + reglocs[i].count; regnum++)
+        if (0 == ebl_core_note (ebl, &nhdr, "CORE", &regs_offset, &nregloc, &reglocs, &nitems, &items))
         {
-          char regname[5];
-          int bits, type;
-          const char *prefix = 0;
-          const char *setname = 0;
-          ssize_t ret = ebl_register_info (ebl, regnum, regname, sizeof(regname), &prefix, &setname, &bits, &type);
-          if (ret < 0)
+          fprintf (stderr, "%s : error parsing notes (built with different build of libebl?)\n", core_file_name);
+          return 100;
+        }
+
+        const char *regs_location = (const char *)(notes->d_buf) + pos + desc_pos + regs_offset;
+        unsigned i;
+
+        for (i = 0; i < nregloc; i++)
+        {
+          const char *register_location = regs_location + reglocs[i].offset;
+          int regnum;
+          for (regnum = reglocs[i].regno; regnum < reglocs[i].regno + reglocs[i].count; regnum++)
           {
-            fprintf (stderr, "%s : can't get register info\n", argv[1]);
-            return 11;
+            char regname[5];
+            int bits, type;
+            const char *prefix = 0;
+            const char *setname = 0;
+            ssize_t ret = ebl_register_info (ebl, regnum, regname, sizeof(regname), &prefix, &setname, &bits, &type);
+            if (ret < 0)
+            {
+              fprintf (stderr, "%s : can't get register info\n", core_file_name);
+              return 11;
+            }
+            void *place_for_reg_value = get_place_for_register_value (regname, regnum);
+
+            if (place_for_reg_value != NULL)
+              getvalue (core, register_location, bits, place_for_reg_value);
+
+            register_location += bits / 8 + reglocs[i].pad;
           }
-          void *place_for_reg_value = get_place_for_register_value (regname, regnum);
-
-          if (place_for_reg_value != NULL)
-            getvalue (core, register_location, bits, place_for_reg_value);
-
-          register_location += bits / 8 + reglocs[i].pad;
         }
       }
-    }
-    else if (nhdr.n_type == NT_FILE)
-    {
-      uint64_t values_cnt, page_size;
-      const char *values;
-      const char *filenames;
-      size_t addr_size;
-
-      parse_note_file(core, notes->d_buf + desc_pos, &values_cnt, &page_size, &addr_size, &values, &filenames);
-//      printf("addr_size: %d, mappings: %llu, page size: %llu\n", addr_size, values_cnt, page_size);
-
-      int ii;
-      /* First: triplets of <mapping-start> <mapping-end> <offset-in-pages>
-       *     count = values_cnt
-       * Then the names of files.
-       */
-      for (ii = 0; ii < values_cnt; ii++)
+      else if (nhdr.n_type == NT_FILE)
       {
-          uint64_t mapping_start, mapping_end, offset_in_pages;
-          const char *item = values + 3 * addr_size * ii;
+        uint64_t values_cnt, page_size;
+        const char *values;
+        const char *filenames;
+        size_t addr_size;
 
-          get_mapping_item (core, addr_size, item, &mapping_start, &mapping_end, &offset_in_pages);
-/*          printf ("<0x%08llx-0x%08llx>@0x%08llx: %s\n", mapping_start, mapping_end, offset_in_pages,
-              filenames);
-*/
-          updateMapping (&mappings, mapping_start, mapping_end, offset_in_pages*page_size, filenames);
-          filenames += strlen(filenames)+1;
+        parse_note_file(core, notes->d_buf + desc_pos, &values_cnt, &page_size, &addr_size, &values, &filenames);
+  //      printf("addr_size: %d, mappings: %llu, page size: %llu\n", addr_size, values_cnt, page_size);
+
+        int ii;
+        /* First: triplets of <mapping-start> <mapping-end> <offset-in-pages>
+         *     count = values_cnt
+         * Then the names of files.
+         */
+        for (ii = 0; ii < values_cnt; ii++)
+        {
+            uint64_t mapping_start, mapping_end, offset_in_pages;
+            const char *item = values + 3 * addr_size * ii;
+
+            get_mapping_item (core, addr_size, item, &mapping_start, &mapping_end, &offset_in_pages);
+  /*          printf ("<0x%08llx-0x%08llx>@0x%08llx: %s\n", mapping_start, mapping_end, offset_in_pages,
+                filenames);
+  */
+            updateMapping (&mappings, mapping_start, mapping_end, offset_in_pages*page_size, filenames);
+            filenames += strlen(filenames)+1;
+        }
       }
+      pos = new_pos;
     }
-    pos = new_pos;
+    ebl_closebackend(ebl);
   }
-
-/*  printf ("PC: 0x%llx\n", (unsigned long long)regs.pc);
-  printf ("SP: 0x%llx\n", (unsigned long long)regs.sp);*/
 
   Callstack callstack;
 
-  create_crash_stack (regs, dwfl, core, &mappings, &callstack);
+  create_crash_stack (dwfl, core, pid, &mappings, &callstack);
 
   char *dem_buffer = NULL;
   size_t it;
@@ -428,7 +555,6 @@ int main(int argc, char **argv)
 
   dwfl_report_end (dwfl, NULL, NULL);
   dwfl_end (dwfl);
-  ebl_closebackend(ebl);
   elf_end (core);
   close (core_fd);
 
