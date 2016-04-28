@@ -31,11 +31,7 @@ typedef struct Mappings
   size_t elems;
 } Mappings;
 
-struct Regs;
-typedef struct Regs Regs;
-
-Regs *get_regs_struct (void);
 void *get_place_for_register_value (const char *regname, int regnum);
-void create_crash_stack (Regs *regs, Dwfl *dwfl, Elf *core, Mappings *mappings, Callstack *callstack);
+void create_crash_stack (Dwfl *dwfl, Elf *core, pid_t pid, Mappings *mappings, Callstack *callstack);
 
 #endif /* CRASH_STACK_H */
