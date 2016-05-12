@@ -1,0 +1,7 @@
+Code-Review+2: Karol Lewandowski <k.lewandowsk@samsung.com>
+Verified+1: Adrian Szyndela <adrian.s@samsung.com>
+Submitted-by: Karol Lewandowski <k.lewandowsk@samsung.com>
+Submitted-at: Thu, 12 May 2016 05:35:09 -0700
+Reviewed-on: https://review.tizen.org/gerrit/67994
+Project: platform/core/system/crash-worker
+Branch: refs/heads/tizen
