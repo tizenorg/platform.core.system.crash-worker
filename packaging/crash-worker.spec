@@ -3,7 +3,7 @@ Summary:    Crash-manager
 Version:    0.2.0
 Release:    1
 Group:      Framework/system
-License:    Apache-2.0
+License:    Apache-2.0 and PD
 Source0:    %{name}-%{version}.tar.gz
 Source1001:    crash-worker.manifest
 BuildRequires:  pkgconfig(dlog)
