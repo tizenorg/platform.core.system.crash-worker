@@ -36,7 +36,7 @@
 #include "shared/util.h"
 #include "shared/log.h"
 
-#define DLOG_BACKEND_PATH "/run/dloginit.conf"
+#define DLOG_BACKEND_PATH TZ_SYS_ETC"/dlog.conf"
 
 #define FILE_PERM (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)
 static struct dump_item {
@@ -98,7 +98,7 @@ static bool dlogutil_supported(void)
 
 	fclose(fp);
 
-	if (!strncmp(buf, "LOG_TYPE=journal", 16))
+	if (!strncmp(buf, "backend=journal", 15))
 		return false;
 
 	return true;
@@ -222,18 +222,18 @@ int main(int argc, char *argv[]) {
 	if (arg_dlog) {
 		if (dlogutil_supported()) {
 			fprintf_fd(out_fd, "\n==== main log messages (/dev/log_main)\n");
-			ret = run_command_write_fd("/usr/bin/dlogutil -d -v dump -b main", out_fd);
+			ret = run_command_write_fd("/usr/bin/dlogutil -d -v threadtime -b main", out_fd);
 			if (ret < 0)
 				goto exit_close;
 
 			if(is_root) {
 				fprintf_fd(out_fd, "\n==== system log messages (/dev/log_system)\n");
-				ret = run_command_write_fd("/usr/bin/dlogutil -d -v dump -b system", out_fd);
+				ret = run_command_write_fd("/usr/bin/dlogutil -d -v threadtime -b system", out_fd);
 				if (ret < 0)
 					goto exit_close;
 
 				fprintf_fd(out_fd, "\n==== radio log messages (/dev/log_radio)\n");
-				ret = run_command_write_fd("/usr/bin/dlogutil -d -v dump -b radio", out_fd);
+				ret = run_command_write_fd("/usr/bin/dlogutil -d -v threadtime -b radio", out_fd);
 				if (ret < 0)
 					goto exit_close;
 			}
