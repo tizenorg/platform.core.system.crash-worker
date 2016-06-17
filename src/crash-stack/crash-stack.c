@@ -169,8 +169,10 @@ static char *try_symbol_from_elfs (Elf *core, Elf_Data *notes, uintptr_t address
 
             elf = elf_begin (fd, ELF_C_READ_MMAP, NULL);
 
-            if (NULL == elf)
+            if (NULL == elf) {
+              close(fd);
               return NULL;
+	    }
 
             Elf_Scn *scn = NULL;
             *module_name = filenames;
