@@ -1,6 +1,5 @@
 #!/bin/sh
 
-set -e
 exec >/dev/null 2>&1
 
 PATH=/bin:/usr/bin
@@ -17,11 +16,6 @@ time="$5"
 cmd="$6"
 
 temp_dir="$(mktemp -d "${CRASH_TEMP}/crash.XXXXXX")"
-cleanup()
-{
-    [ "$temp_dir" ] && rm -rf "$temp_dir"
-}
-trap cleanup 0 2 15
 
 name="${cmd}_${pid}_${time}"
 result_path="${CRASH_PATH}/${name}.tar.gz"
@@ -44,3 +38,6 @@ dump_systemstate -d -k -f "$log_path" || true
 
 tar czf "${temp_dir}/report.tar.gz" -C "$temp_dir" "$name"
 mv "${temp_dir}/report.tar.gz" "$result_path"
+
+[ "$temp_dir" ] && rm -rf "$temp_dir"
+
