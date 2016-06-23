@@ -5,7 +5,13 @@ SET(PREFIX ${CMAKE_INSTALL_PREFIX})
 
 # Sub modules
 ADD_SUBDIRECTORY(src/crash-manager)
-ADD_SUBDIRECTORY(src/crash-pipe)
-ADD_SUBDIRECTORY(src/crash-stack)
+
+IF("${SYS_ASSERT}" STREQUAL "on")
+	ADD_SUBDIRECTORY(src/sys-assert)
+ELSE("${SYS_ASSERT}" STREQUAL "on")
+	ADD_SUBDIRECTORY(src/crash-pipe)
+	ADD_SUBDIRECTORY(src/crash-stack)
+ENDIF("${SYS_ASSERT}" STREQUAL "on")
+
 ADD_SUBDIRECTORY(src/dump_systemstate)
 
