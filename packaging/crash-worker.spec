@@ -1,3 +1,5 @@
+%define sys_assert on
+
 Name:      crash-worker
 Summary:    Crash-manager
 Version:    0.2.0
@@ -9,6 +11,9 @@ Source1001:    crash-worker.manifest
 BuildRequires:  pkgconfig(dlog)
 BuildRequires:  pkgconfig(libtzplatform-config)
 BuildRequires:  cmake
+%if "%{?sys_assert}" == "on"
+BuildRequires:  pkgconfig(libunwind)
+%endif
 BuildRequires:  libelf-devel libelf
 BuildRequires:  libebl-devel libebl
 BuildRequires:  libdw-devel libdw
@@ -34,13 +39,23 @@ cp %{SOURCE1001} .
 
 export CFLAGS+=" -Werror"
 
+%ifarch %{arm}
+export CFLAGS+=" -DARM"
+%else
+%ifarch %{ix86}
+export CFLAGS+=" -DX86"
+%endif
+%endif
+
+
 %cmake . \
 	   -DCMAKE_INSTALL_PREFIX=%{_prefix} \
 	   -DTZ_SYS_BIN=%{TZ_SYS_BIN} \
 	   -DCRASH_PATH=%{crash_path} \
 	   -DCRASH_TEMP=%{crash_temp} \
 	   -DCRASH_PIPE_PATH=%{_libexecdir}/crash-pipe \
-	   -DCRASH_STACK_PATH=%{_libexecdir}/crash-stack
+	   -DCRASH_STACK_PATH=%{_libexecdir}/crash-stack \
+	   -DSYS_ASSERT=%{sys_assert}
 
 make %{?jobs:-j%jobs}
 
@@ -51,6 +66,32 @@ mkdir -p %{buildroot}%{crash_root_path}
 mkdir -p %{buildroot}%{crash_path}
 mkdir -p %{buildroot}%{crash_temp}
 
+
+
+%if "%{?sys_assert}" == "on"
+
+%post
+if [ ! -d /.build ]; then
+	orig="%{_libdir}/libsys-assert.so"
+	pattern=$(echo $orig | sed -e 's|/|\\/|g')
+	ret=$(sed -n "/${pattern}/p"  %{_sysconfdir}/ld.so.preload)
+	if [ -z "$ret" ]; then
+		echo "%{_libdir}/libsys-assert.so" >> %{_sysconfdir}/ld.so.preload
+	fi
+	chmod 644 %{_sysconfdir}/ld.so.preload
+fi
+/sbin/ldconfig
+
+%postun
+orig="%{_libdir}/libsys-assert.so"
+pattern=$(echo $orig | sed -e 's|/|\\/|g')
+sed -i "/${pattern}/D" %{_sysconfdir}/ld.so.preload
+/sbin/ldconfig
+
+%endif
+
+
+
 %files
 %license LICENSE
 %manifest crash-worker.manifest
@@ -60,6 +101,13 @@ mkdir -p %{buildroot}%{crash_temp}
 %dir %{crash_temp}
 %attr(0755,system,system) %{_bindir}/dump_systemstate
 %{_bindir}/crash-manager.sh
+%{_prefix}/lib/sysctl.d/99-crash-manager.conf
+
+%if "%{?sys_assert}" == "on"
+%{_libdir}/libsys-assert.so
+%{_libdir}/tmpfiles.d/sys-assert.conf
+%endif
+
 %{_libexecdir}/crash-pipe
 %{_libexecdir}/crash-stack
-%{_prefix}/lib/sysctl.d/99-crash-manager.conf
+
