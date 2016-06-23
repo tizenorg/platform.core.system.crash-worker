@@ -24,11 +24,13 @@ info_path="${pfx}/${name}.info"
 core_path="${pfx}/${name}.coredump"
 log_path="${pfx}/${name}.log"
 tmp_callstack_path="${pfx}/${name}.callstack"
+sysassert_cs_path="/tmp/crash_stack/${cmd}_${pid}.info"
 
 mkdir -p "$CRASH_PATH" "$pfx"
 
 if [ $DEBUG -eq 1 ]
 then
+  mv "$sysassert_cs_path" "$pfx/"
 #  @CRASH_STACK_PATH@ --pid "$pid" > "$tmp_callstack_path"
   @CRASH_PIPE_PATH@ --save-core "$core_path" --report "$@" > "$info_path"
 #  cat "$tmp_callstack_path" >> "$info_path"
