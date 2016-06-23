@@ -64,10 +64,21 @@ static int module_callback (Dwfl_Module *module, void **userdata,
 
 static void getvalue (Elf *core, const void *from, size_t size, void *to)
 {
+  Elf_Type type = ELF_T_BYTE;
+  switch (size)
+  {
+    case 8: type = ELF_T_BYTE; break;
+    case 16: type = ELF_T_HALF; break;
+    case 32: type = ELF_T_WORD; break;
+    case 64: type = ELF_T_XWORD; break;
+    default:
+      fprintf (stderr, "getvalue for strange size: %llu\n", (unsigned long long)size);
+      break;
+  }
   Elf_Data out =
   {
     .d_buf = to,
-    .d_type = size == 32 ? ELF_T_WORD : ELF_T_XWORD,
+    .d_type = type,
     .d_version = EV_CURRENT,
     .d_size = size/8,
     .d_off = 0,
@@ -304,10 +315,7 @@ static Dwfl *open_dwfl_with_core (Elf *core, const char *core_file_name)
 static int get_registers_ptrace (pid_t pid)
 {
   struct iovec data;
-  uintptr_t regbuf[20];
-
-  data.iov_base = regbuf;
-  data.iov_len = sizeof (regbuf);
+  data.iov_base = crash_stack_get_memory_for_ptrace_registers ( &data.iov_len );
 
   if (ptrace (PTRACE_GETREGSET, pid, NT_PRSTATUS, &data) != 0)
   {
@@ -315,16 +323,8 @@ static int get_registers_ptrace (pid_t pid)
     return -1;
   }
 
-  size_t i;
-  for (i = 0;
-       i * sizeof (regbuf[0]) < data.iov_len && i < sizeof (regbuf)/sizeof (regbuf[0]);
-       i++)
-  {
-    void *reg = get_place_for_register_value ("", i);
+  crash_stack_set_ptrace_registers (data.iov_base);
 
-    if (NULL != reg)
-      memcpy (reg, &regbuf[i], sizeof (regbuf[i]));
-  }
   return 0;
 }
 
@@ -416,8 +416,9 @@ static Elf_Data *get_registers_core (Elf *core, const char *core_file_name, Mapp
              regnum < reglocs[i].regno + reglocs[i].count;
              regnum++)
         {
-          char regname[5];
-          int bits, type;
+          int bits = 32;
+          char regname[20];
+          int type;
           const char *prefix = 0;
           const char *setname = 0;
 
@@ -426,9 +427,10 @@ static Elf_Data *get_registers_core (Elf *core, const char *core_file_name, Mapp
                                            &bits, &type);
           if (ret < 0)
           {
-            fprintf (errfile, "%s : can't get register info\n", core_file_name);
+            fprintf (errfile, "can't get register %d info\n", regnum);
             return NULL;
           }
+
           void *place_for_reg_value = get_place_for_register_value (regname, regnum);
 
           if (place_for_reg_value != NULL)
@@ -477,13 +479,14 @@ static Elf_Data *get_registers_core (Elf *core, const char *core_file_name, Mapp
 static void printCallstack (Callstack *callstack, Dwfl *dwfl, Elf *core, pid_t pid,
     Elf_Data *notes)
 {
+  bool start_found = false;
   fprintf (outputfile, "Call stack");
   if (pid > 1) fprintf (outputfile, " for PID %d", pid);
   fprintf (outputfile, ":\n");
 
   char *dem_buffer = NULL;
   size_t it;
-  for (it = 0; it != callstack->elems; ++it)
+  for (it = 0; it != callstack->elems && !start_found; ++it)
   {
     if (sizeof (callstack->tab[0]) > 4)
       fprintf (outputfile, "0x%016llx: ", (long long)callstack->tab[it]);
@@ -510,7 +513,10 @@ static void printCallstack (Callstack *callstack, Dwfl *dwfl, Elf *core, pid_t p
           symbol = demangled_symbol;
       }
       if (symbol != 0)
+      {
         fprintf (outputfile, "%s()", symbol);
+        start_found = strcmp (symbol, "__libc_start_main") == 0;
+      }
       else
         fprintf (outputfile, "<unknown>");
 

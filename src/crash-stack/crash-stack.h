@@ -34,4 +34,12 @@ typedef struct Mappings
 void *get_place_for_register_value (const char *regname, int regnum);
 void create_crash_stack (Dwfl *dwfl, Elf *core, pid_t pid, Mappings *mappings, Callstack *callstack);
 
+Dwarf_Addr crash_stack_libelf_get_prologue_pc (Dwfl *dwfl, Dwarf_Addr current_pc, Mappings *mappings);
+bool crash_stack_libelf_read_value (Dwfl *dwfl, Elf *core, pid_t pid,
+                                    Dwarf_Addr a, void *v, size_t size,
+                                    Mappings *mappings);
+
+void *crash_stack_get_memory_for_ptrace_registers (size_t *size);
+void crash_stack_set_ptrace_registers (void *regbuf);
+
 #endif /* CRASH_STACK_H */

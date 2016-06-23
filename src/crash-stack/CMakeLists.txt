@@ -1,11 +1,16 @@
 option(WITH_CORE_DUMP "builds with support for core dump files (with GPL2 license)")
 set(CRASH_STACK_BIN "crash-stack")
-set(CRASH_STACK_SRCS crash-stack.c)
+set(CRASH_STACK_SRCS crash-stack.c crash-stack-libelf-helpers.c)
 
 if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "armv7l")
   set(CRASH_STACK_SRCS ${CRASH_STACK_SRCS} crash-stack-arm.c wind/unwarm.c wind/unwarm_thumb.c wind/unwarm_arm.c wind/unwarmmem.c)
 else()
-  set(CRASH_STACK_SRCS ${CRASH_STACK_SRCS} crash-stack-libelf.c)
+  if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+    set(CRASH_STACK_SRCS ${CRASH_STACK_SRCS} crash-stack-aarch64.c)
+  elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+    set(CRASH_STACK_SRCS ${CRASH_STACK_SRCS} crash-stack-libelf.c)
+    set(CRASH_STACK_SRCS ${CRASH_STACK_SRCS} crash-stack-x86_64.c)
+  endif()
 endif()
 
 add_executable(${CRASH_STACK_BIN} ${CRASH_STACK_SRCS})
