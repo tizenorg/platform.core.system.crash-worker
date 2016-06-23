@@ -16,7 +16,9 @@ BuildRequires:  libdw-devel libdw
 Requires(post): coreutils
 Requires(post): tar
 Requires(post): gzip
-Requires: libebl
+# If you need support for core dump files (see building below),
+# you should add this dependency
+# Requires: libebl
 
 %description
 crash-manager
@@ -41,6 +43,9 @@ export CFLAGS+=" -Werror"
 	   -DCRASH_TEMP=%{crash_temp} \
 	   -DCRASH_PIPE_PATH=%{_libexecdir}/crash-pipe \
 	   -DCRASH_STACK_PATH=%{_libexecdir}/crash-stack
+# to add support for core dump files add backslash at the end of above line
+# and uncomment below line:
+#	   -DWITH_CORE_DUMP=ON
 
 make %{?jobs:-j%jobs}
 
