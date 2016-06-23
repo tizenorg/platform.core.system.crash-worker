@@ -8,7 +8,7 @@ SET(SRCS
    )
 
 INCLUDE(FindPkgConfig)
-pkg_check_modules(pkgs REQUIRED dlog)
+pkg_check_modules(pkgs REQUIRED dlog libunwind)
 
 FOREACH(flag ${pkgs_CFLAGS})
 	SET(EXTRA_CFLAGS "${EXTRA_CFLAGS} ${flag}")

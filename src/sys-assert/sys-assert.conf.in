@@ -1,0 +1,2 @@
+d	/tmp/crash_stack	1777	root	root
+t	/tmp/crash_stack	-	-	-	-	security.SMACK64=*
