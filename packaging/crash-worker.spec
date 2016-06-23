@@ -16,6 +16,7 @@ BuildRequires:  libdw-devel libdw
 Requires(post): coreutils
 Requires(post): tar
 Requires(post): gzip
+Requires: libebl
 
 %description
 crash-manager
