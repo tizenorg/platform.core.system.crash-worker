@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <libelf.h>
 #include <elfutils/libdwfl.h>
+#ifdef WITH_CORE_DUMP
 #include <elfutils/libebl.h>
+#endif
 #include <errno.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -88,24 +90,6 @@ static void getvalue (Elf *core, const void *from, size_t size, void *to)
     data = elf64_xlatetom (&out, &in, elf_getident (core, NULL)[EI_DATA]);
   if (data == NULL)
     fprintf (errfile, "failed to get value from core file\n");
-}
-
-static void updateMapping (Mappings *mappings, uint64_t mapping_start, uint64_t mapping_end,
-    uint64_t offset, const char *name)
-{
-  int i;
-  for (i = 0; i < mappings->elems; i++)
-  {
-    if (mappings->tab[i].m_start == mapping_start)
-    {
-      mappings->tab[i].m_end = mapping_end;
-      mappings->tab[i].m_name = name;
-      mappings->tab[i].m_offset = offset;
-      mappings->tab[i].m_fd = open(name, O_RDONLY);
-      mappings->tab[i].m_elf = elf_begin(mappings->tab[i].m_fd, ELF_C_READ_MMAP, NULL);
-      return;
-    }
-  }
 }
 
 static void parse_note_file (Elf *elf, const char *desc, uint64_t *values_cnt, uint64_t *page_size,
@@ -341,8 +325,30 @@ static int get_registers_ptrace (pid_t pid)
   return 0;
 }
 
+#ifdef WITH_CORE_DUMP
+static void updateMapping (Mappings *mappings, uint64_t mapping_start, uint64_t mapping_end,
+    uint64_t offset, const char *name)
+{
+  int i;
+  for (i = 0; i < mappings->elems; i++)
+  {
+    if (mappings->tab[i].m_start == mapping_start)
+    {
+      mappings->tab[i].m_end = mapping_end;
+      mappings->tab[i].m_name = name;
+      mappings->tab[i].m_offset = offset;
+      mappings->tab[i].m_fd = open(name, O_RDONLY);
+      mappings->tab[i].m_elf = elf_begin(mappings->tab[i].m_fd, ELF_C_READ_MMAP, NULL);
+      return;
+    }
+  }
+}
+#endif
+
 static Elf_Data *get_registers_core (Elf *core, const char *core_file_name, Mappings *mappings)
 {
+  Elf_Data *notes = NULL;
+#ifdef WITH_CORE_DUMP
   GElf_Phdr mem;
   GElf_Phdr *phdr = gelf_getphdr (core, 0, &mem);
 
@@ -353,7 +359,7 @@ static Elf_Data *get_registers_core (Elf *core, const char *core_file_name, Mapp
     return NULL;
   }
 
-  Elf_Data *notes = elf_getdata_rawchunk (core, phdr->p_offset, phdr->p_filesz, ELF_T_NHDR);
+  notes = elf_getdata_rawchunk (core, phdr->p_offset, phdr->p_filesz, ELF_T_NHDR);
   if (notes == NULL)
   {
     fprintf (errfile, "%s : error getting notes (%s)\n", core_file_name, dwfl_errmsg(-1));
@@ -459,6 +465,9 @@ static Elf_Data *get_registers_core (Elf *core, const char *core_file_name, Mapp
     pos = new_pos;
   }
   ebl_closebackend (ebl);
+#else
+  fprintf (errfile, "Configured without support for core dump files\n");
+#endif
   return notes;
 }
 
