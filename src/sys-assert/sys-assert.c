@@ -65,7 +65,11 @@
 
 #define HEXA 16
 #define PERM_LEN 5
+#ifdef ARCH_64
+#define ADDR_LEN 10
+#else
 #define ADDR_LEN 8
+#endif
 #define INFO_LEN 20
 #define VALUE_LEN 24
 #define TIME_MAX_LEN 64
@@ -103,7 +107,7 @@ static int trace_symbols(void *const *array, int size, struct addr_node *start, 
 	Elf32_Sym *symtab_entry;
 	int i, cnt, file, ret;
 	char *fname;
-	unsigned int addr, start_addr, offset_addr;
+	unsigned long addr, start_addr, offset_addr;
 	unsigned int strtab_index = 0;
 	unsigned int symtab_index = 0;
 	int num_st = 0;
@@ -120,8 +124,8 @@ static int trace_symbols(void *const *array, int size, struct addr_node *start, 
 					cnt, array[cnt], dlerror());
 			continue;
 		}
-		start_addr = (unsigned int)get_start_addr(array[cnt], start);
-		addr = (unsigned int)array[cnt];
+		start_addr = (unsigned long)get_start_addr(array[cnt], start);
+		addr = (unsigned long)array[cnt];
 		/* because of launchpad,
 		 * return value of dladdr when find executable is wrong.
 		 * so fix dli_fname here */
@@ -329,7 +333,7 @@ static struct addr_node *get_addr_list_from_maps(int fd)
 			continue;
 		perm[PERM_LEN - 1] = 0;
 		/* rwxp */
-#ifdef ARM
+#ifdef ARCH_ARM
 		if ((perm[2] == 'x' && path[0] == '/') ||
 				(perm[1] == 'w' && path[0] != '/')) {
 #else
@@ -390,9 +394,9 @@ static void print_node_to_file(struct addr_node *start, int fd)
 			t_node = t_node->next;
 		} else {
 			fprintf_fd(fd,
-					"%08x %08x %s %s\n",
-					(unsigned int)t_node->startaddr,
-					(unsigned int)t_node->endaddr,
+					"%16lx %16lx %s %s\n",
+					(unsigned long)t_node->startaddr,
+					(unsigned long)t_node->endaddr,
 					t_node->perm, t_node->fpath);
 			t_node = t_node->next;
 		}

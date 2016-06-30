@@ -17,37 +17,29 @@
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
-#include <execinfo.h>
 #include <ucontext.h>
-#include "sys-assert.h"
+#include <libunwind.h>
+#include <execinfo.h>
 #include "util.h"
-#include "sys-assert-regs.h"
 
 int dump_callstack(void **callstack_addrs, int size, void *context, int retry)
 {
 	ucontext_t *ucontext = context;
-	int count = CALLSTACK_BASE;
+	int count;
 
 	if (!callstack_addrs)
 		return 0;
 
-	if (context) {
-		layout *ebp = (layout *)ucontext->uc_mcontext.gregs[REG_EBP];
-		callstack_addrs[count++] =
-			(long *)ucontext->uc_mcontext.gregs[REG_EIP];
-		while (ebp && (count < size)) {
-			callstack_addrs[count++] = ebp->ret;
-			ebp = ebp->ebp;
-		}
-	} else {
+	if (!retry && (context && ((int)ucontext->uc_mcontext.pc != 0)))
+		count = unw_backtrace(callstack_addrs, size);
+	else
 		count = backtrace(callstack_addrs, size);
-	}
 
 	if (count > CALLSTACK_BASE) {
 		count -= CALLSTACK_BASE;
 	} else if (context) {
-		callstack_addrs[CALLSTACK_BASE] = (long *)ucontext->uc_mcontext.gregs[REG_EIP];
-		callstack_addrs[CALLSTACK_BASE + 1] = (long *)ucontext->uc_mcontext.gregs[REG_ESP];
+		callstack_addrs[CALLSTACK_BASE] = (long *)ucontext->uc_mcontext.pc;
+		callstack_addrs[CALLSTACK_BASE] = (long *)ucontext->uc_mcontext.regs[30]; /* LR (link register) */
 		count = 2;
 	} else {
 		count = 0;

@@ -21,7 +21,7 @@
 
 #include <time.h>
 
-#ifdef ARM
+#ifdef ARCH_ARM
 #define BASE_LAUNCHPAD_ADDR 0x8000
 #else
 #define BASE_LAUNCHPAD_ADDR 0x8048000
@@ -40,7 +40,7 @@ extern "C" {
 		struct addr_node *next;
 	};
 
-#ifdef ARM
+#ifdef ARCH_ARM
 	typedef struct layout {
 		struct layout *fp;
 		void *ret;

@@ -20,6 +20,7 @@
 #include <ucontext.h>
 #include "sys-assert.h"
 #include "util.h"
+#include "sys-assert-regs.h"
 
 #define CRASH_REGISTERINFO_TITLE "Register Information"
 
