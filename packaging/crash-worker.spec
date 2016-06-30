@@ -40,17 +40,23 @@ cp %{SOURCE1001} .
 
 export CFLAGS+=" -Werror"
 
-%ifarch %{arm}
-export CFLAGS+=" -DARM"
+%ifarch %{arm} aarch64
+	%define ARCH arm
 %else
-%ifarch %{ix86}
-export CFLAGS+=" -DX86"
-%endif
+	%define ARCH x86
 %endif
 
+%ifarch %{arm} %ix86
+	%define ARCH_BIT 32
+%else
+	%define ARCH_BIT 64
+%endif
 
 %cmake . \
 	   -DCMAKE_INSTALL_PREFIX=%{_prefix} \
+	   -DTMP_FILES_DIR=%{_tmpfilesdir} \
+	   -DARCH=%{ARCH} \
+	   -DARCH_BIT=%{ARCH_BIT} \
 	   -DTZ_SYS_BIN=%{TZ_SYS_BIN} \
 	   -DCRASH_PATH=%{crash_path} \
 	   -DCRASH_TEMP=%{crash_temp} \
@@ -106,7 +112,7 @@ sed -i "/${pattern}/D" %{_sysconfdir}/ld.so.preload
 
 %if "%{?sys_assert}" == "on"
 %{_libdir}/libsys-assert.so
-%{_libdir}/tmpfiles.d/sys-assert.conf
+%{_tmpfilesdir}/sys-assert.conf
 %endif
 
 %{_libexecdir}/crash-pipe
