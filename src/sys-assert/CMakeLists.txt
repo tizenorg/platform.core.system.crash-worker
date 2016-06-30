@@ -6,17 +6,29 @@ SET(SRCS
 		util.c
 )
 
-IF("$ENV{CFLAGS}" MATCHES "-DARM")
-SET(SRCS ${SRCS}
-		arm/context.c
-		arm/backtrace.c
-)
-ELSE("$ENV{CFLAGS}" MATCHES "-DARM")
-SET(SRCS ${SRCS}
-		x86/context.c
-		x86/backtrace.c
-)
-ENDIF("$ENV{CFLAGS}" MATCHES "-DARM")
+#arm
+IF("${ARCH}" STREQUAL "arm")
+IF("${ARCH_BIT}" STREQUAL "32")
+	SET(SRCS ${SRCS}
+			arm/context.c
+			arm/backtrace.c
+	)
+ENDIF("${ARCH_BIT}" STREQUAL "32")
+IF("${ARCH_BIT}" STREQUAL "64")
+	SET(SRCS ${SRCS}
+			arm_64/context.c
+			arm_64/backtrace.c
+	)
+ENDIF("${ARCH_BIT}" STREQUAL "64")
+ENDIF("${ARCH}" STREQUAL "arm")
+
+#x86
+IF("${ARCH}" STREQUAL "x86")
+	SET(SRCS ${SRCS}
+			x86/context.c
+			x86/backtrace.c
+	)
+ENDIF("${ARCH}" STREQUAL "x86")
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -44,4 +56,4 @@ TARGET_LINK_LIBRARIES(${LIBNAME} ${ppkgs_LDFLAGS} -ldl)
 INSTALL(TARGETS ${LIBNAME} LIBRARY DESTINATION ${LIB_INSTALL_DIR})
 
 CONFIGURE_FILE(sys-assert.conf.in sys-assert.conf)
-INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/sys-assert.conf DESTINATION /usr/lib/tmpfiles.d)
+INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/sys-assert.conf DESTINATION ${TMP_FILES_DIR})
