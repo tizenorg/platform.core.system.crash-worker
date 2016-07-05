@@ -1,4 +1,14 @@
 %define sys_assert on
+%define crash_popup off
+
+%if "%{?profile}" == "mobile"
+%define crash_popup on
+%endif
+
+%if "%{?profile}" == "wearable"
+%define crash_popup on
+%endif
+
 
 Name:      crash-worker
 Summary:    Crash-manager
@@ -23,6 +33,9 @@ Requires(post): tar
 Requires(post): gzip
 Requires: libebl
 Requires: libunwind
+%if %{?crash_popup} == on
+Requires: /usr/bin/dbus-send
+%endif
 
 %description
 crash-manager
@@ -62,6 +75,7 @@ export CFLAGS+=" -Werror"
 	   -DCRASH_TEMP=%{crash_temp} \
 	   -DCRASH_PIPE_PATH=%{_libexecdir}/crash-pipe \
 	   -DCRASH_STACK_PATH=%{_libexecdir}/crash-stack \
+	   -DCRASH_POPUP=%{crash_popup} \
 	   -DSYS_ASSERT=%{sys_assert}
 
 make %{?jobs:-j%jobs}
