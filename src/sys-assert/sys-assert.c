@@ -102,7 +102,7 @@ extern int dump_callstack(void **callstack_addrs, int size, void *context, int r
 static int trace_symbols(void *const *array, int size, struct addr_node *start, int fd)
 {
 	Dl_info info_funcs;
-	Elf32_Ehdr elf_h;
+	Elf32_Ehdr elf_h = {{0,},0,};
 	Elf32_Shdr *s_headers;
 	Elf32_Sym *symtab_entry;
 	int i, cnt, file, ret;
@@ -595,7 +595,7 @@ void sighandler(int signum, siginfo_t *info, void *context)
 	pid_t pid;
 	pid_t tid;
 	DIR *dir;
-	struct dirent *dentry;
+	struct dirent entry, *dentry;
 	char timestr[TIME_MAX_LEN];
 	char processname[NAME_MAX] = {0,};
 	char exepath[PATH_LEN] = {0,};
@@ -614,7 +614,7 @@ void sighandler(int signum, siginfo_t *info, void *context)
 	struct addr_node *head = NULL;
 	/* for preventing recursion */
 	static int retry_count = 0;
-	struct sysinfo si;
+	struct sysinfo si = {0,};
 
 	if (retry_count > 1) {
 		fprintf(stderr, "[sys-assert] recurcive called\n");
@@ -676,8 +676,8 @@ void sighandler(int signum, siginfo_t *info, void *context)
 	/* create cs file */
 	if ((fd_cs = creat(filepath, FILE_PERMS)) < 0) {
 		fprintf(stderr,
-				"[sys-assert]can't create %s. errno = %s\n",
-				filepath, strerror(errno));
+				"[sys-assert]can't create %s. errno = %d\n",
+				filepath, errno);
 		return;
 	}
 
@@ -772,7 +772,7 @@ void sighandler(int signum, siginfo_t *info, void *context)
 		if (!dir) {
 			fprintf(stderr, "[sys-assert]can't open %s\n", TASK_PATH);
 		} else {
-			while ((dentry = readdir(dir)) != NULL) {
+			while (readdir_r(dir, &entry, &dentry) == 0) {
 				if( strcmp(dentry->d_name, ".") == 0
 						|| strcmp(dentry->d_name, "..") == 0)
 					continue;
