@@ -88,7 +88,7 @@
 
 int sig_to_handle[] = {
 	SIGILL, SIGTRAP, SIGABRT, SIGBUS,
-	SIGFPE, SIGSEGV, SIGSTKFLT, SIGXCPU, SIGXFSZ, SIGSYS };
+	SIGFPE, SIGSTKFLT, SIGXCPU, SIGXFSZ, SIGSYS };
 
 #define NUM_SIG_TO_HANDLE	\
 	((int)(sizeof(sig_to_handle)/sizeof(sig_to_handle[0])))
