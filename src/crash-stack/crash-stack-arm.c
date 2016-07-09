@@ -75,13 +75,19 @@ Boolean readT (Int32 a, void *v, size_t size)
 	{
 		// get data from segment
 		GElf_Phdr mem;
-		GElf_Phdr *phdr = gelf_getphdr (g_core, segment, &mem);
-		Dwarf_Addr offset_in_segment = a - phdr->p_vaddr;
-		if (offset_in_segment < phdr->p_filesz)
-		{
-			Dwarf_Addr offset_in_file = phdr->p_offset + offset_in_segment;
+		GElf_Phdr *phdr;
+		Dwarf_Addr offset_in_segment;
 
-			data = elf_getdata_rawchunk (g_core, offset_in_file, size, ELF_T_BYTE);
+		phdr = gelf_getphdr (g_core, segment, &mem);
+		if (phdr != NULL)
+		{
+			offset_in_segment = a - phdr->p_vaddr;
+			if (offset_in_segment < phdr->p_filesz)
+			{
+				Dwarf_Addr offset_in_file = phdr->p_offset + offset_in_segment;
+
+				data = elf_getdata_rawchunk (g_core, offset_in_file, size, ELF_T_BYTE);
+			}
 		}
 	}
 
