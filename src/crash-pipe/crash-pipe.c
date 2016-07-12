@@ -131,6 +131,7 @@ static void report(int argc, char *argv[])
 	  { "cgroup", "CGroup", 0 },
 	  { "attr/current", "MAC Label", 0 },
 	  { "oom_score", "OOM Score", 0 },
+	  { "oom_score_adj", "OOM Score Adj", 0 },
 	  { "cmdline", "Cmdline", 1 },
 	  { "environ", "Environment", 1 }
      };
