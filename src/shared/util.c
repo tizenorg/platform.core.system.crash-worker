@@ -61,13 +61,12 @@ int system_command(char *command)
 			if (errno != EINTR)
 				return -1;
 		} else {
-			if (WIFEXITED(status)) {
+			if (WIFEXITED(status))
 				return WEXITSTATUS(status);
-			} else if (WIFSIGNALED(status)) {
+			else if (WIFSIGNALED(status))
 				return WTERMSIG(status);
-			} else if (WIFSTOPPED(status)) {
+			else if (WIFSTOPPED(status))
 				return WSTOPSIG(status);
-			}
 		}
 	} while (!WIFEXITED(status) && !WIFSIGNALED(status));
 
@@ -173,7 +172,7 @@ int copy_file(char *src, char *dst)
 	int dfd;
 	char buf[PIPE_BUF];
 
-	if(!src || !dst) {
+	if (!src || !dst) {
 		_E("Invalid argument\n");
 		return -1;
 	}
@@ -206,7 +205,7 @@ int cat_file(char *src, char *dst)
 	int dfd;
 	char buf[PIPE_BUF];
 
-	if(!src || !dst) {
+	if (!src || !dst) {
 		_E("Invalid argument\n");
 		return -1;
 	}
@@ -247,7 +246,7 @@ int dump_file_write_fd(char *src, int dfd)
 	int sfd;
 	char buf[PIPE_BUF];
 
-	if(!src) {
+	if (!src) {
 		_E("Invalid argument\n");
 		return -1;
 	}
@@ -283,9 +282,9 @@ int run_command_write_fd(char *cmd, int dfd)
 		_E("Failed to popen\n");
 		return -1;
 	}
-	while(fgets(buff, PIPE_BUF, fp) != NULL) {
+	while (fgets(buff, PIPE_BUF, fp) != NULL)
 		write_fd(dfd, buff, strlen(buff));
-	}
+
 	ret = pclose(fp);
 	return ret;
 }
@@ -313,9 +312,8 @@ static int remove_dir_internal(int fd)
 				ret = -1;
 				continue;
 			}
-			if (remove_dir_internal(subfd)) {
+			if (remove_dir_internal(subfd))
 				ret = -1;
-			}
 			close(subfd);
 			if (unlinkat(fd, de->d_name, AT_REMOVEDIR) < 0) {
 				_SE("Couldn't unlinkat %s: %d\n", de->d_name, errno);

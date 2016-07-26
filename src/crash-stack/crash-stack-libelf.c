@@ -2,33 +2,33 @@
 #include <elfutils/libdwfl.h>
 #include <elfutils/version.h>
 
-#if _ELFUTILS_PREREQ(0,158)
-static int frame_callback (Dwfl_Frame *state, void *arg)
+#if _ELFUTILS_PREREQ(0, 158)
+static int frame_callback(Dwfl_Frame *state, void *arg)
 {
 	Callstack *callstack = (Callstack*)arg;
 	Dwarf_Addr address;
-	dwfl_frame_pc (state, &address, NULL);
+	dwfl_frame_pc(state, &address, NULL);
 	callstack->tab[callstack->elems++] = address;
 	return callstack->elems < MAX_CALLSTACK_LEN ? DWARF_CB_OK : DWARF_CB_ABORT;
 }
 
-static int thread_callback (Dwfl_Thread *thread, void *thread_arg)
+static int thread_callback(Dwfl_Thread *thread, void *thread_arg)
 {
-	dwfl_thread_getframes (thread, frame_callback, thread_arg);
+	dwfl_thread_getframes(thread, frame_callback, thread_arg);
 	return DWARF_CB_ABORT;
 }
 #endif
 
-void *get_place_for_register_value (const char *regname, int regnum)
+void *get_place_for_register_value(const char *regname, int regnum)
 {
 	return 0;
 }
 
-void create_crash_stack (Dwfl *dwfl, Elf *core, pid_t pid, Mappings *mappings, Callstack *callstack)
+void create_crash_stack(Dwfl *dwfl, Elf *core, pid_t pid, Mappings *mappings, Callstack *callstack)
 {
 	callstack->elems = 0;
-#if _ELFUTILS_PREREQ(0,158)
-	dwfl_getthreads (dwfl, thread_callback, callstack);
+#if _ELFUTILS_PREREQ(0, 158)
+	dwfl_getthreads(dwfl, thread_callback, callstack);
 #endif
 }
 

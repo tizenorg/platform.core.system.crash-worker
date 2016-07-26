@@ -102,7 +102,7 @@ extern int dump_callstack(void **callstack_addrs, int size, void *context, int r
 static int trace_symbols(void *const *array, int size, struct addr_node *start, int fd)
 {
 	Dl_info info_funcs;
-	Elf32_Ehdr elf_h = {{0,},0,};
+	Elf32_Ehdr elf_h = {{0, }, 0, };
 	Elf32_Shdr *s_headers;
 	Elf32_Sym *symtab_entry;
 	int i, cnt, file, ret;
@@ -146,7 +146,7 @@ static int trace_symbols(void *const *array, int size, struct addr_node *start, 
 			/* Both dli_sname and dli_fname is NULL, sys-assert cannot trace any information.
 			   Thus, sys-assert skips to translate such address entry.
 			   However, if a developer wants raw information, we need to fix the code to print raw data */
-			if(info_funcs.dli_fname == NULL)
+			if (info_funcs.dli_fname == NULL)
 				continue;
 
 			file = open(info_funcs.dli_fname, O_RDONLY);
@@ -553,32 +553,32 @@ static void print_signal_info(int signum, const siginfo_t *info, int fd)
 		}
 	} else if (signum == SIGSEGV) {
 		switch (info->si_code) {
-			case SEGV_MAPERR:
-				fprintf_fd(fd, "      address not mapped to object\n");
-				break;
-			case SEGV_ACCERR:
-				fprintf_fd(fd,
-						"      invalid permissions for mapped object\n");
-				break;
-			default:
-				fprintf_fd(fd, "      illegal si_code: %d\n", info->si_code);
-				break;
+		case SEGV_MAPERR:
+			fprintf_fd(fd, "      address not mapped to object\n");
+			break;
+		case SEGV_ACCERR:
+			fprintf_fd(fd,
+					"      invalid permissions for mapped object\n");
+			break;
+		default:
+			fprintf_fd(fd, "      illegal si_code: %d\n", info->si_code);
+			break;
 		}
 		fprintf_fd(fd, "      si_addr = %p\n", info->si_addr);
 	} else if (signum == SIGBUS) {
 		switch (info->si_code) {
-			case BUS_ADRALN:
-				fprintf_fd(fd, "      invalid address alignment\n");
-				break;
-			case BUS_ADRERR:
-				fprintf_fd(fd, "      nonexistent physical address\n");
-				break;
-			case BUS_OBJERR:
-				fprintf_fd(fd, "      object-specific hardware error\n");
-				break;
-			default:
-				fprintf_fd(fd, "      illegal si_code: %d\n", info->si_code);
-				break;
+		case BUS_ADRALN:
+			fprintf_fd(fd, "      invalid address alignment\n");
+			break;
+		case BUS_ADRERR:
+			fprintf_fd(fd, "      nonexistent physical address\n");
+			break;
+		case BUS_OBJERR:
+			fprintf_fd(fd, "      object-specific hardware error\n");
+			break;
+		default:
+			fprintf_fd(fd, "      illegal si_code: %d\n", info->si_code);
+			break;
 		}
 		fprintf_fd(fd, "      si_addr: %p\n", info->si_addr);
 	}
@@ -653,7 +653,7 @@ void sighandler(int signum, siginfo_t *info, void *context)
 		return;
 	/* make crash info file name */
 	snprintf(timestr, sizeof(timestr), "%.10ld", cur_time);
-	snprintf(crashid, sizeof(crashid), "%s_%d",processname, pid);
+	snprintf(crashid, sizeof(crashid), "%s_%d", processname, pid);
 	if (snprintf(filepath, PATH_LEN,
 				"%s/%s.info", CRASH_INFO_PATH, crashid) == 0) {
 		fprintf(stderr,
@@ -773,10 +773,10 @@ void sighandler(int signum, siginfo_t *info, void *context)
 			fprintf(stderr, "[sys-assert]can't open %s\n", TASK_PATH);
 		} else {
 			while (readdir_r(dir, &entry, &dentry) == 0) {
-				if( strcmp(dentry->d_name, ".") == 0
+				if (strcmp(dentry->d_name, ".") == 0
 						|| strcmp(dentry->d_name, "..") == 0)
 					continue;
-				fprintf_fd(fd_cs, "%s ",dentry->d_name);
+				fprintf_fd(fd_cs, "%s ", dentry->d_name);
 			}
 			closedir(dir);
 			fprintf_fd(fd_cs, "\n");

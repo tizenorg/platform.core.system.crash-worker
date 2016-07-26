@@ -53,7 +53,8 @@ static struct dump_item {
 	{"==== System disk I/O satistics " , "/proc/diskstats"},
 };
 
-static void usage() {
+static void usage()
+{
 	fprintf(stderr, "usage: dump_systemstate [-k] [-d] [-f file]\n"
 			"  -f: write to file (instead of stdout)\n"
 			"  -k: dump kernel messages (only root)\n"
@@ -77,7 +78,8 @@ static int get_disk_used_percent(const char *path)
 	return percent;
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
 	int c, ret, i, is_root, dpercent;
 	const char *arg_file = NULL;
 	int out_fd = -1;
@@ -118,7 +120,7 @@ int main(int argc, char *argv[]) {
 	} else {
 		out_fd = open(arg_file, O_WRONLY | O_TRUNC | O_CREAT, FILE_PERM);
 		if (out_fd < 0) {
-			perror ("couldn't open output file");
+			perror("couldn't open output file");
 			ret = out_fd;
 			goto exit;
 		}
