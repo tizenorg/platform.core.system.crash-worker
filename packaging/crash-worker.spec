@@ -1,14 +1,6 @@
 %define sys_assert on
 %define crash_popup off
 
-%if "%{?profile}" == "mobile"
-%define crash_popup on
-%endif
-
-%if "%{?profile}" == "wearable"
-%define crash_popup on
-%endif
-
 
 Name:      crash-worker
 Summary:    Crash-manager
